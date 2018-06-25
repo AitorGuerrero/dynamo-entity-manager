@@ -1,0 +1,36 @@
+{
+  "name": "dynamo-entity-manager",
+  "version": "1.0.1-0",
+  "description": "Entity manager for Amazon DynamoDB NoSQL database",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha ./**/*.test.js",
+    "precommit": "tsc && tslint -p . && npm run test"
+  },
+  "keywords": [
+    "aws",
+    "amazon",
+    "dynamo",
+    "dynamodb",
+    "entity",
+    "manager"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AitorGuerrero/dynamo-entity-manager.git"
+  },
+  "author": "Aitor Guerrero <aguerrerolasarte@gmail.com>",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/chai": "^4.1.4",
+    "@types/mocha": "^5.2.3",
+    "@types/node": "^10.3.5",
+    "aws-sdk": "^2.263.1",
+    "chai": "^4.1.2",
+    "husky": "^0.14.3",
+    "mocha": "^5.2.0",
+    "tslint": "^5.10.0",
+    "typescript": "^2.9.2"
+  }
+}
