@@ -6,16 +6,16 @@ import {FakeDocumentClient} from "./fake-document-client.class";
 import {ITableConfig} from "./table-config.interface";
 
 describe("Having a class entity type", () => {
-	class Entity {
-		public hashAttr: string;
-		public rangeAttr: string;
-		public marshaled: false;
-		public updatableValue: any;
+	interface IEntity {
+		hashAttr: string;
+		rangeAttr: string;
+		marshaled: false;
+		updatableValue: any;
 	}
 
 	const tableName = "entityTable";
 	const keySchema = [{KeyType: "HASH", AttributeName: "hashAttr"}, {KeyType: "RANGE", AttributeName: "rangeAttr"}];
-	const marshal = (e: Entity) => Object.assign(JSON.parse(JSON.stringify(e)), {marshaled: true});
+	const marshal = (e: IEntity) => Object.assign(JSON.parse(JSON.stringify(e)), {marshaled: true});
 	const tableConfig: ITableConfig<any> = {keySchema, tableName, marshal};
 
 	let entityManager: DynamoEntityManager;
@@ -32,13 +32,15 @@ describe("Having a class entity type", () => {
 		const hashAttr = "entityHashAttr";
 		const rangeAttr = "entityRangeAttr";
 
-		let entity: Entity;
+		let entity: IEntity;
 
 		beforeEach(() => {
-			entity = new Entity();
-			entity.hashAttr = hashAttr;
-			entity.rangeAttr = rangeAttr;
-			entity.marshaled = false;
+			entity = {
+				hashAttr,
+				marshaled: false,
+				rangeAttr,
+				updatableValue: null,
+			};
 			entityManager.trackNew(tableName, entity);
 		});
 		it("Should not persist before flushing", async () => {
@@ -64,13 +66,15 @@ describe("Having a class entity type", () => {
 		const rangeAttr = "entityRangeAttr";
 		const originalUpdatableValue = "originalUpdatableValue";
 
-		let entity: Entity;
+		let entity: IEntity;
 
 		beforeEach(async () => {
-			entity = new Entity();
-			entity.hashAttr = hashAttr;
-			entity.rangeAttr = rangeAttr;
-			entity.updatableValue = originalUpdatableValue;
+			entity = {
+				hashAttr,
+				marshaled: false,
+				rangeAttr,
+				updatableValue: originalUpdatableValue,
+			};
 			await new Promise((rs, rj) => documentClient.put(
 				{TableName: tableName, Item: entity},
 				(err) => err ? rj(err) : rs(),
@@ -85,6 +89,16 @@ describe("Having a class entity type", () => {
 				it("Should persist updated", async () => {
 					const persisted = await documentClient.getByKey<any>(tableName, {hashAttr, rangeAttr});
 					expect(persisted.updatableValue).to.be.eq(updatedValue);
+				});
+			});
+		});
+		describe("when deleting the entity", () => {
+			beforeEach(() => entityManager.delete(tableName, entity));
+			describe("and flushed", () => {
+				beforeEach(() => entityManager.flush());
+				it("the entity should not be in the document client", async () => {
+					const persistedEntity = await documentClient.getByKey(tableName, {hashAttr, rangeAttr});
+					expect(persistedEntity).to.be.undefined;
 				});
 			});
 		});

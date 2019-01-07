@@ -13,12 +13,26 @@ type TrackedTable = Map<any, {
 	entityName: string,
 }>;
 
+/**
+ * @TODO updating only modified attributes instead of all the item.
+ * @TODO entity versioning
+ */
 export class DynamoEntityManager {
 
+	/**
+	 * Class event emitter.
+	 * The emitted event types are defined in EventType.
+	 */
 	public readonly eventEmitter: EventEmitter;
+
 	private readonly tableConfigs: {[entityName: string]: ITableConfig<any>};
 	private tracked: TrackedTable;
 
+	/**
+	 * @param {DocumentClient} dc
+	 * @param {Array<ITableConfig<any>>} tableConfigs
+	 * @param {module:events.internal.EventEmitter} eventEmitter
+	 */
 	constructor(
 		private dc: DocumentClient,
 		tableConfigs: Array<ITableConfig<any>>,
@@ -32,12 +46,10 @@ export class DynamoEntityManager {
 		}
 	}
 
-	public addTableConfig(config: ITableConfig<any>) {
-		this.tableConfigs[config.tableName] = Object.assign({
-			marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
-		}, config);
-	}
-
+	/**
+	 * Flushes all the changes made to loaded entities.
+	 * @returns {Promise<void>}
+	 */
 	public async flush() {
 		const processed: Array<Promise<any>> = [];
 		for (const entityConfig of this.tracked.values()) {
@@ -63,6 +75,12 @@ export class DynamoEntityManager {
 		this.eventEmitter.emit(EventType.flushed);
 	}
 
+	/**
+	 * Tracks a existing entity in the DB. When flushing, it saves the diferences with the state in moment of tracking.
+	 * @TODO If a entity does not exists with the key, it fails.
+	 * @param {string} tableName
+	 * @param {E} entity
+	 */
 	public track<E>(tableName: string, entity: E) {
 		if (entity === undefined) {
 			return;
@@ -73,6 +91,12 @@ export class DynamoEntityManager {
 		this.tracked.set(entity, {action: "UPDATE", initialStatus: JSON.stringify(entity), entity, entityName: tableName});
 	}
 
+	/**
+	 * Creates a entity in the DB. When flusing , it puts the entity in the DB.
+	 * @TODO If a entity exists with the key, it fails.
+	 * @param {string} tableName
+	 * @param {E} entity
+	 */
 	public trackNew<E>(tableName: string, entity: E) {
 		if (entity === undefined) {
 			return;
@@ -83,6 +107,11 @@ export class DynamoEntityManager {
 		this.tracked.set(entity, {action: "CREATE", entity, entityName: tableName});
 	}
 
+	/**
+	 * When flushing, deletes the entity.
+	 * @param {string} tableName
+	 * @param {E} entity
+	 */
 	public delete<E>(tableName: string, entity: E) {
 		if (entity === undefined) {
 			return;
@@ -97,17 +126,25 @@ export class DynamoEntityManager {
 		}
 	}
 
+	/**
+	 * Clears all the tracked entities, without flushing them.
+	 */
 	public clear() {
 		this.tracked = new Map();
 	}
 
+	private addTableConfig(config: ITableConfig<any>) {
+		this.tableConfigs[config.tableName] = Object.assign({
+			marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
+		}, config);
+	}
+
 	private async createItem<E>(entityName: string, entity: E) {
-		const request = {
-			Item: this.tableConfigs[entityName].marshal(entity),
-			TableName: this.tableConfigs[entityName].tableName,
-		};
 		try {
-			await this.asyncPut(request);
+			await this.asyncPut({
+				Item: this.tableConfigs[entityName].marshal(entity),
+				TableName: this.tableConfigs[entityName].tableName,
+			});
 		} catch (err) {
 			this.eventEmitter.emit(EventType.errorCreating, err, entity);
 
@@ -119,12 +156,12 @@ export class DynamoEntityManager {
 		if (!this.entityHasChanged(entity)) {
 			return;
 		}
-		const request = {
-			Item: this.tableConfigs[entityName].marshal(entity),
-			TableName: this.tableConfigs[entityName].tableName,
-		};
+		const tableConfig = this.tableConfigs[entityName];
 		try {
-			await this.asyncPut(request);
+			await this.asyncPut({
+				Item: tableConfig.marshal(entity),
+				TableName: tableConfig.tableName,
+			});
 		} catch (err) {
 			this.eventEmitter.emit(EventType.errorUpdating, err, entity);
 
@@ -132,16 +169,12 @@ export class DynamoEntityManager {
 		}
 	}
 
-	private entityHasChanged<E>(entity: E) {
-		return JSON.stringify(entity) !== this.tracked.get(entity).initialStatus;
-	}
-
 	private async deleteItem<E>(entityName: string, item: E) {
 		const tableConfig = this.tableConfigs[entityName];
 		try {
 			return this.asyncDelete({
 				Key: getEntityKey(tableConfig.keySchema, tableConfig.marshal(item)),
-				TableName: this.tableConfigs[entityName].tableName,
+				TableName: tableConfig.tableName,
 			});
 		} catch (err) {
 			this.eventEmitter.emit(EventType.errorDeleting, err, item);
@@ -150,10 +183,8 @@ export class DynamoEntityManager {
 		}
 	}
 
-	private asyncUpdate(request: DocumentClient.UpdateItemInput) {
-		return new Promise<DocumentClient.UpdateItemOutput>(
-			(rs, rj) => this.dc.update(request, (err, res) => err ? rj(err) : rs(res)),
-		);
+	private entityHasChanged<E>(entity: E) {
+		return JSON.stringify(entity) !== this.tracked.get(entity).initialStatus;
 	}
 
 	private asyncPut(request: DocumentClient.PutItemInput) {

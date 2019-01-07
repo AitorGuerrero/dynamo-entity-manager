@@ -48,6 +48,8 @@ export class FakeDocumentClient {
 			cb(null, {});
 		} else if (this.keySchemas[input.TableName].rangeKey === undefined) {
 			cb(null, {Item: JSON.parse(this.collections[input.TableName][hashKey] as any)});
+		} else if (this.collections[input.TableName][hashKey][rangeKey] === undefined) {
+			cb(null, {});
 		} else {
 			cb(null, {Item: JSON.parse(this.collections[input.TableName][hashKey][rangeKey])});
 		}
