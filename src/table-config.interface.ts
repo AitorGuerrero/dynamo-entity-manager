@@ -2,6 +2,7 @@ import {DynamoDB} from "aws-sdk";
 
 export interface ITableConfig<Entity> {
 	tableName: string;
-	keySchema: DynamoDB.DocumentClient.KeySchema;
+	keySchema: {hash: string, range: string};
 	marshal?: (e: Entity) => DynamoDB.DocumentClient.AttributeMap;
+	versionKey?: string;
 }

@@ -1,6 +1,7 @@
 import {DynamoDB} from "aws-sdk";
 import {expect} from "chai";
 import {beforeEach, describe, it} from "mocha";
+import PoweredDynamo from "powered-dynamo/powered-dynamo.class";
 import {DynamoEntityManager} from "./entity-manager.class";
 import {FakeDocumentClient} from "./fake-document-client.class";
 import {ITableConfig} from "./table-config.interface";
@@ -16,7 +17,7 @@ describe("Having a class entity type", () => {
 	const tableName = "entityTable";
 	const keySchema = [{KeyType: "HASH", AttributeName: "hashAttr"}, {KeyType: "RANGE", AttributeName: "rangeAttr"}];
 	const marshal = (e: IEntity) => Object.assign(JSON.parse(JSON.stringify(e)), {marshaled: true});
-	const tableConfig: ITableConfig<any> = {keySchema, tableName, marshal};
+	const tableConfig: ITableConfig<any> = {keySchema: {hash: "hashAttr", range: "rangeAttr"}, tableName, marshal};
 
 	let entityManager: DynamoEntityManager;
 	let documentClient: FakeDocumentClient;
@@ -24,7 +25,7 @@ describe("Having a class entity type", () => {
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({[tableName]: keySchema});
 		entityManager = new DynamoEntityManager(
-			documentClient as any as DynamoDB.DocumentClient,
+			new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient),
 			[tableConfig],
 		);
 	});

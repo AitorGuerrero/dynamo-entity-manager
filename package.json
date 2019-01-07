@@ -23,7 +23,9 @@
   },
   "author": "Aitor Guerrero <aitor.guerrero.dev@gmail.com>",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "powered-dynamo": "^1.0.0"
+  },
   "devDependencies": {
     "@types/chai": "^4.1.7",
     "@types/mocha": "^5.2.5",
