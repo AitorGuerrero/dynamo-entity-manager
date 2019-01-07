@@ -1,11 +1,13 @@
 {
   "name": "dynamo-entity-manager",
-  "version": "1.0.1-0",
+  "version": "0.0.0",
   "description": "Entity manager for Amazon DynamoDB NoSQL database",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "test": "nyc --reporter=html mocha ./**/*.test.js",
-    "precommit": "tsc && tslint -p . && npm run test && git add coverage"
+    "style": "tslint -p .",
+    "precommit": "npm run build && npm run style && npm run test"
   },
   "keywords": [
     "aws",
@@ -19,19 +21,19 @@
     "type": "git",
     "url": "git+https://github.com/AitorGuerrero/dynamo-entity-manager.git"
   },
-  "author": "Aitor Guerrero <aguerrerolasarte@gmail.com>",
+  "author": "Aitor Guerrero <aitor.guerrero.dev@gmail.com>",
   "license": "ISC",
   "dependencies": {},
   "devDependencies": {
-    "@types/chai": "^4.1.4",
-    "@types/mocha": "^5.2.3",
-    "@types/node": "^10.3.5",
-    "aws-sdk": "^2.263.1",
-    "chai": "^4.1.2",
+    "@types/chai": "^4.1.7",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^10.12.18",
+    "aws-sdk": "^2.384.0",
+    "chai": "^4.2.0",
     "husky": "^0.14.3",
     "mocha": "^5.2.0",
     "nyc": "^12.0.2",
-    "tslint": "^5.10.0",
+    "tslint": "^5.12.0",
     "typescript": "^2.9.2"
   }
 }
