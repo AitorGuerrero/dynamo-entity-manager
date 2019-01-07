@@ -206,13 +206,24 @@ export class FakeDocumentClient {
 	) {
 		await this.awaitFlush();
 		this.guardShouldFail(cb);
-		const hashKey = input.Item[this.keySchemas[input.TableName].hashKey];
-		const rangeKey = input.Item[this.keySchemas[input.TableName].rangeKey];
-		this.ensureHashKey(input.TableName, hashKey);
-		if (this.keySchemas[input.TableName].rangeKey === undefined) {
-			this.collections[input.TableName][hashKey] = JSON.stringify(input.Item) as any;
-		} else {
-			this.collections[input.TableName][hashKey][rangeKey] = JSON.stringify(input.Item);
+		this.putItem(input);
+		cb(null, {});
+	}
+
+	public async transactWrite(
+		input: DocumentClient.TransactWriteItemsInput,
+		cb: (err?: Error, result?: DocumentClient.TransactWriteItemsOutput) => any,
+	) {
+		await this.awaitFlush();
+		this.guardShouldFail(cb);
+		for (const item of input.TransactItems) {
+			if (item.Update) {
+				throw new Error("fake transact update not implemented");
+			} else if (item.Put) {
+				this.putItem(item.Put);
+			} else if (item.Delete) {
+				this.deleteItem(item.Delete);
+			}
 		}
 		cb(null, {});
 	}
@@ -221,13 +232,7 @@ export class FakeDocumentClient {
 		input: DocumentClient.DeleteItemInput,
 		cb: (err?: Error, result?: DocumentClient.DeleteItemOutput) => any,
 	) {
-		const hashKey = input.Key[this.keySchemas[input.TableName].hashKey];
-		const rangeKey = input.Key[this.keySchemas[input.TableName].rangeKey];
-		if (this.keySchemas[input.TableName].rangeKey === undefined) {
-			this.collections[input.TableName][hashKey] = undefined;
-		} else {
-			this.collections[input.TableName][hashKey][rangeKey] = undefined;
-		}
+		this.deleteItem(input);
 		cb(null, {});
 	}
 
@@ -239,6 +244,27 @@ export class FakeDocumentClient {
 	public failOnCall(error?: Error) {
 		this.shouldFail = true;
 		this.error = error;
+	}
+
+	private putItem(itemInput: DocumentClient.Put) {
+		const hashKey = itemInput.Item[this.keySchemas[itemInput.TableName].hashKey];
+		const rangeKey = itemInput.Item[this.keySchemas[itemInput.TableName].rangeKey];
+		this.ensureHashKey(itemInput.TableName, hashKey);
+		if (this.keySchemas[itemInput.TableName].rangeKey === undefined) {
+			this.collections[itemInput.TableName][hashKey] = JSON.stringify(itemInput.Item) as any;
+		} else {
+			this.collections[itemInput.TableName][hashKey][rangeKey] = JSON.stringify(itemInput.Item);
+		}
+	}
+
+	private deleteItem(itemInput: DocumentClient.Delete) {
+		const hashKey = itemInput.Key[this.keySchemas[itemInput.TableName].hashKey];
+		const rangeKey = itemInput.Key[this.keySchemas[itemInput.TableName].rangeKey];
+		if (this.keySchemas[itemInput.TableName].rangeKey === undefined) {
+			this.collections[itemInput.TableName][hashKey] = undefined;
+		} else {
+			this.collections[itemInput.TableName][hashKey][rangeKey] = undefined;
+		}
 	}
 
 	private getStartKey(tableName: string, exclusiveStartKey: DocumentClient.Key) {
