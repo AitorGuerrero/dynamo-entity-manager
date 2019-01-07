@@ -6,12 +6,16 @@ import {ITableConfig} from "./table-config.interface";
 
 import DocumentClient = DynamoDB.DocumentClient;
 
-type TrackedTable = Map<any, {
-	action: "CREATE" | "UPDATE" | "DELETE",
-	initialStatus?: any,
-	entity: any,
-	entityName: string,
-}>;
+enum Action {create, update, delete}
+
+interface ITrackedITem<Entity> {
+	action: Action;
+	initialStatus?: unknown;
+	entity: Entity;
+	tableConfig: ITableConfig<Entity>;
+}
+
+type TrackedItems<E> = Map<any, ITrackedITem<E>>;
 
 /**
  * @TODO updating only modified attributes instead of all the item.
@@ -26,7 +30,7 @@ export class DynamoEntityManager {
 	public readonly eventEmitter: EventEmitter;
 
 	private readonly tableConfigs: {[entityName: string]: ITableConfig<any>};
-	private tracked: TrackedTable;
+	private tracked: TrackedItems<unknown> = new Map();
 
 	/**
 	 * @param {DocumentClient} dc
@@ -54,14 +58,14 @@ export class DynamoEntityManager {
 		const processed: Array<Promise<any>> = [];
 		for (const entityConfig of this.tracked.values()) {
 			switch (entityConfig.action) {
-				case "UPDATE":
-					processed.push(this.updateItem(entityConfig.entityName, entityConfig.entity));
+				case Action.update:
+					processed.push(this.updateItem(entityConfig.tableConfig, entityConfig.entity));
 					break;
-				case "DELETE":
-					processed.push(this.deleteItem(entityConfig.entityName, entityConfig.entity));
+				case Action.delete:
+					processed.push(this.deleteItem(entityConfig.tableConfig, entityConfig.entity));
 					break;
-				case "CREATE":
-					processed.push(this.createItem(entityConfig.entityName, entityConfig.entity));
+				case Action.create:
+					processed.push(this.createItem(entityConfig.tableConfig, entityConfig.entity));
 					break;
 			}
 		}
@@ -88,7 +92,12 @@ export class DynamoEntityManager {
 		if (this.tracked.has(entity)) {
 			return;
 		}
-		this.tracked.set(entity, {action: "UPDATE", initialStatus: JSON.stringify(entity), entity, entityName: tableName});
+		this.tracked.set(entity, {
+			action: Action.update,
+			entity,
+			initialStatus: JSON.stringify(entity),
+			tableConfig: this.tableConfigs[tableName],
+		});
 	}
 
 	/**
@@ -104,7 +113,11 @@ export class DynamoEntityManager {
 		if (this.tracked.has(entity)) {
 			return;
 		}
-		this.tracked.set(entity, {action: "CREATE", entity, entityName: tableName});
+		this.tracked.set(entity, {
+			action: Action.create,
+			entity,
+			tableConfig: this.tableConfigs[tableName],
+		});
 	}
 
 	/**
@@ -118,11 +131,15 @@ export class DynamoEntityManager {
 		}
 		if (
 			this.tracked.has(entity)
-			&& this.tracked.get(entity).action === "CREATE"
+			&& this.tracked.get(entity).action === Action.create
 		) {
 			this.tracked.delete(entity);
 		} else {
-			this.tracked.set(entity, {action: "DELETE", entity, entityName: tableName});
+			this.tracked.set(entity, {
+				action: Action.delete,
+				entity,
+				tableConfig: this.tableConfigs[tableName],
+			});
 		}
 	}
 
@@ -139,11 +156,11 @@ export class DynamoEntityManager {
 		}, config);
 	}
 
-	private async createItem<E>(entityName: string, entity: E) {
+	private async createItem<E>(tableConfig: ITableConfig<E>, entity: E) {
 		try {
 			await this.asyncPut({
-				Item: this.tableConfigs[entityName].marshal(entity),
-				TableName: this.tableConfigs[entityName].tableName,
+				Item: tableConfig.marshal(entity),
+				TableName: tableConfig.tableName,
 			});
 		} catch (err) {
 			this.eventEmitter.emit(EventType.errorCreating, err, entity);
@@ -152,11 +169,10 @@ export class DynamoEntityManager {
 		}
 	}
 
-	private async updateItem<E>(entityName: string, entity: E) {
+	private async updateItem<E>(tableConfig: ITableConfig<E>, entity: E) {
 		if (!this.entityHasChanged(entity)) {
 			return;
 		}
-		const tableConfig = this.tableConfigs[entityName];
 		try {
 			await this.asyncPut({
 				Item: tableConfig.marshal(entity),
@@ -169,8 +185,7 @@ export class DynamoEntityManager {
 		}
 	}
 
-	private async deleteItem<E>(entityName: string, item: E) {
-		const tableConfig = this.tableConfigs[entityName];
+	private async deleteItem<E>(tableConfig: ITableConfig<E>, item: E) {
 		try {
 			return this.asyncDelete({
 				Key: getEntityKey(tableConfig.keySchema, tableConfig.marshal(item)),
