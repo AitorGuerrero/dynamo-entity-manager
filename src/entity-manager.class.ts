@@ -75,6 +75,11 @@ export class DynamoEntityManager {
 		return JSON.stringify(entity.entity) !== entity.initialStatus;
 	}
 
+	private static isSameKey(k1: DocumentClient.Key, k2: DocumentClient.Key, config: ITableConfig<unknown>) {
+		return k1[config.keySchema.hash] === k1[config.keySchema.hash] &&
+			(config.keySchema.range === undefined || k2[config.keySchema.range] === k2[config.keySchema.range]);
+	}
+
 	/**
 	 * Class event emitter.
 	 * The emitted event types are defined in EventType.
@@ -130,6 +135,9 @@ export class DynamoEntityManager {
 		if (this.tracked.has(entity)) {
 			return;
 		}
+		if (this.keyIsTracked(tableName, DynamoEntityManager.getEntityKey(entity, this.tableConfigs[tableName]))) {
+			throw new Error("Key is in use");
+		}
 		this.tracked.set(entity, {
 			action: Action.update,
 			entity,
@@ -151,6 +159,9 @@ export class DynamoEntityManager {
 		}
 		if (this.tracked.has(entity)) {
 			return;
+		}
+		if (this.keyIsTracked(tableName, DynamoEntityManager.getEntityKey(entity, this.tableConfigs[tableName]))) {
+			throw new Error("Key is in use");
 		}
 		this.tracked.set(entity, {
 			action: Action.create,
@@ -188,6 +199,13 @@ export class DynamoEntityManager {
 	 */
 	public clear() {
 		this.tracked.clear();
+	}
+
+	public keyIsTracked(tableName: string, key: DocumentClient.Key) {
+		return Array.from(this.tracked.values())
+			.filter((i) => i.tableConfig.tableName === tableName)
+			.map((i) => DynamoEntityManager.getEntityKey(i.entity, this.tableConfigs[tableName]))
+			.some((i) => DynamoEntityManager.isSameKey(i, key, this.tableConfigs[tableName]));
 	}
 
 	private addVersionConditionExpression<I>(
