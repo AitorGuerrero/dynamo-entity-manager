@@ -28,7 +28,7 @@ export class DynamoEntityManager {
 
 	private static buildConditionExpression(entity: any, tableConf: ITableConfig<unknown>) {
 		const result: any = {
-			ConditionExpression: "#keyHash<>::keyHash",
+			ConditionExpression: "#keyHash<>:keyHash",
 			ExpressionAttributeNames: {"#keyHash": tableConf.keySchema.hash},
 			ExpressionAttributeValues: {":keyHash": entity[tableConf.keySchema.hash]},
 		};
