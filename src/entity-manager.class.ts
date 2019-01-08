@@ -48,8 +48,16 @@ export class DynamoEntityManager {
 	) {
 		if (tableConf.versionKey !== undefined) {
 			input.ConditionExpression = "#version=:version";
-			input.ExpressionAttributeNames["#version"] = tableConf.versionKey;
-			input.ExpressionAttributeValues[":version"] = entity[tableConf.versionKey];
+			input.ExpressionAttributeNames = Object.assign(
+				{},
+				input.ExpressionAttributeNames,
+				{"#version": tableConf.versionKey},
+			);
+			input.ExpressionAttributeValues = Object.assign(
+				{},
+				input.ExpressionAttributeValues,
+				{":version": entity[tableConf.versionKey]},
+			);
 		}
 
 		return input;
