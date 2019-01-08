@@ -121,8 +121,9 @@ export class DynamoEntityManager {
 	 * @TODO If a entity does not exists with the key, it fails.
 	 * @param {string} tableName
 	 * @param {E} entity
+	 * @param version
 	 */
-	public track<E>(tableName: string, entity: E) {
+	public track<E>(tableName: string, entity: E, version?: number) {
 		if (entity === undefined) {
 			return;
 		}
@@ -134,6 +135,7 @@ export class DynamoEntityManager {
 			entity,
 			initialStatus: JSON.stringify(entity),
 			tableConfig: this.tableConfigs[tableName],
+			version,
 		});
 	}
 
@@ -154,6 +156,7 @@ export class DynamoEntityManager {
 			action: Action.create,
 			entity,
 			tableConfig: this.tableConfigs[tableName],
+			version: 0,
 		});
 	}
 
@@ -184,7 +187,7 @@ export class DynamoEntityManager {
 	 * Clears all the tracked entities, without flushing them.
 	 */
 	public clear() {
-		this.tracked = new Map();
+		this.tracked.clear();
 	}
 
 	private addVersionConditionExpression<I>(
