@@ -8,6 +8,7 @@ export type TableName = string;
 export class FakeDocumentClient {
 
 	public stepMode: boolean;
+	public readonly collections: {[tableName: string]: {[hashKey: string]: {[rangeKey: string]: string}}};
 	private readonly keySchemas: {[tableName: string]: {hashKey: string, rangeKey: string}};
 	private resumed: Promise<any>;
 	private resumedEventEmitter: EventEmitter;
@@ -15,7 +16,6 @@ export class FakeDocumentClient {
 	private error: Error;
 	private hashKey: string;
 	private rangeKey: string;
-	private readonly collections: {[tableName: string]: {[hashKey: string]: {[rangeKey: string]: string}}};
 
 	constructor(
 		keySchemas: {[tableName: string]: DocumentClient.KeySchema},

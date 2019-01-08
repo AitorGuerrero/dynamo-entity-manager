@@ -15,9 +15,15 @@ describe("Having a class entity type", () => {
 	}
 
 	const tableName = "entityTable";
+	const versionKey = "v";
 	const keySchema = [{KeyType: "HASH", AttributeName: "hashAttr"}, {KeyType: "RANGE", AttributeName: "rangeAttr"}];
 	const marshal = (e: IEntity) => Object.assign(JSON.parse(JSON.stringify(e)), {marshaled: true});
-	const tableConfig: ITableConfig<any> = {keySchema: {hash: "hashAttr", range: "rangeAttr"}, tableName, marshal};
+	const tableConfig: ITableConfig<any> = {
+		keySchema: {hash: "hashAttr", range: "rangeAttr"},
+		marshal,
+		tableName,
+		versionKey,
+	};
 
 	let entityManager: DynamoEntityManager;
 	let documentClient: FakeDocumentClient;
@@ -59,6 +65,10 @@ describe("Having a class entity type", () => {
 			it("should persist marshaled", async () => {
 				const persisted = await documentClient.getByKey<any>(tableName, {hashAttr, rangeAttr});
 				expect(persisted.marshaled).to.be.true;
+			});
+			it("should persist with 0 version", async () => {
+				const persisted = await documentClient.getByKey<any>(tableName, {hashAttr, rangeAttr});
+				expect(persisted.v).to.be.eq(0);
 			});
 		});
 	});

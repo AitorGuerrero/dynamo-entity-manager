@@ -41,28 +41,6 @@ export class DynamoEntityManager {
 		return result;
 	}
 
-	private static addVersionConditionExpression<I>(
-		input: I & (DocumentClient.Put | DocumentClient.Delete),
-		entity: any,
-		tableConf: ITableConfig<unknown>,
-	) {
-		if (tableConf.versionKey !== undefined) {
-			input.ConditionExpression = "#version=:version";
-			input.ExpressionAttributeNames = Object.assign(
-				{},
-				input.ExpressionAttributeNames,
-				{"#version": tableConf.versionKey},
-			);
-			input.ExpressionAttributeValues = Object.assign(
-				{},
-				input.ExpressionAttributeValues,
-				{":version": entity[tableConf.versionKey]},
-			);
-		}
-
-		return input;
-	}
-
 	private static getEntityKey<Entity>(entity: Entity, tableConfig: ITableConfig<unknown>) {
 		const key: DocumentClient.Key = {};
 		key[tableConfig.keySchema.hash] = (entity as any)[tableConfig.keySchema.hash];
@@ -73,26 +51,28 @@ export class DynamoEntityManager {
 		return key;
 	}
 
-	private static createItem<E>(entity: E, tableConfig: ITableConfig<E>): DynamoDB.TransactWriteItem {
-		const marshaledEntity = tableConfig.marshal(entity);
-		return {
-			Put: Object.assign(
-				DynamoEntityManager.buildConditionExpression(marshaledEntity, tableConfig),
-				{
-					Item: marshaledEntity,
-					TableName: tableConfig.tableName,
-				},
-			),
-		};
+	private static addVersionToCreateItem<Entity>(item: any, tableConfig: ITableConfig<unknown>) {
+		if (tableConfig.versionKey !== undefined) {
+			item[tableConfig.versionKey] = 0;
+		}
+
+		return item;
 	}
 
-	private static deleteItem<E>(item: E, tableConfig: ITableConfig<E>): DynamoDB.TransactWriteItem {
-		return {
-			Delete: DynamoEntityManager.addVersionConditionExpression({
-				Key: DynamoEntityManager.getEntityKey(item, tableConfig),
-				TableName: tableConfig.tableName,
-			}, item, tableConfig),
-		};
+	private static addVersionToUpdateItem<Entity>(
+		item: any,
+		trackedItem: ITrackedITem<Entity>,
+		tableConfig: ITableConfig<unknown>,
+	) {
+		if (tableConfig.versionKey !== undefined) {
+			item[tableConfig.versionKey] = trackedItem.version + 1;
+		}
+
+		return item;
+	}
+
+	private static entityHasChanged<Entity>(entity: ITrackedITem<Entity>) {
+		return JSON.stringify(entity.entity) !== entity.initialStatus;
 	}
 
 	/**
@@ -207,6 +187,50 @@ export class DynamoEntityManager {
 		this.tracked = new Map();
 	}
 
+	private addVersionConditionExpression<I>(
+		input: I & (DocumentClient.Put | DocumentClient.Delete),
+		entity: any,
+		tableConf: ITableConfig<unknown>,
+	) {
+		if (tableConf.versionKey !== undefined) {
+			input.ConditionExpression = "#version=:version";
+			input.ExpressionAttributeNames = Object.assign(
+				{},
+				input.ExpressionAttributeNames,
+				{"#version": tableConf.versionKey},
+			);
+			input.ExpressionAttributeValues = Object.assign(
+				{},
+				input.ExpressionAttributeValues,
+				{":version": this.tracked.get(entity).version},
+			);
+		}
+
+		return input;
+	}
+
+	private deleteItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
+		return {
+			Delete: this.addVersionConditionExpression({
+				Key: DynamoEntityManager.getEntityKey(trackedEntity.entity, trackedEntity.tableConfig),
+				TableName: trackedEntity.tableConfig.tableName,
+			}, trackedEntity.entity, trackedEntity.tableConfig),
+		};
+	}
+
+	private createItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
+		const marshaledEntity = trackedEntity.tableConfig.marshal(trackedEntity.entity);
+		return {
+			Put: Object.assign(
+				DynamoEntityManager.buildConditionExpression(marshaledEntity, trackedEntity.tableConfig),
+				{
+					Item: DynamoEntityManager.addVersionToCreateItem(marshaledEntity, trackedEntity.tableConfig),
+					TableName: trackedEntity.tableConfig.tableName,
+				},
+			),
+		};
+	}
+
 	private updateTrackedStatusAfterFlushing() {
 		this.tracked.forEach((value, key) => {
 			switch (value.action) {
@@ -227,7 +251,7 @@ export class DynamoEntityManager {
 	private buildOperations() {
 		const operations: DocumentClient.TransactWriteItem[] = [];
 		for (const entityConfig of this.tracked.values()) {
-			operations.push(this.flushEntity(entityConfig, entityConfig.tableConfig));
+			operations.push(this.flushEntity(entityConfig));
 		}
 
 		return operations;
@@ -258,14 +282,14 @@ export class DynamoEntityManager {
 		}, config);
 	}
 
-	private flushEntity<E>(entityConfig: ITrackedITem<E>, tableConfig: ITableConfig<E>): DynamoDB.TransactWriteItem {
+	private flushEntity<E>(entityConfig: ITrackedITem<E>): DynamoDB.TransactWriteItem {
 		switch (entityConfig.action) {
 			case Action.update:
-				return this.updateItem(entityConfig.entity, tableConfig);
+				return this.updateItem(entityConfig);
 			case Action.delete:
-				return DynamoEntityManager.deleteItem(entityConfig.entity, tableConfig);
+				return this.deleteItem(entityConfig);
 			case Action.create:
-				return DynamoEntityManager.createItem(entityConfig.entity, tableConfig);
+				return this.createItem(entityConfig);
 		}
 	}
 
@@ -279,28 +303,25 @@ export class DynamoEntityManager {
 		return this.dc.transactWrite(request);
 	}
 
-	private updateItem<E>(entity: E, tableConfig: ITableConfig<E>): DocumentClient.TransactWriteItem {
-		if (!this.entityHasChanged(entity)) {
+	private updateItem<Entity>(trackedEntity: ITrackedITem<Entity>): DocumentClient.TransactWriteItem {
+		const tableConfig = trackedEntity.tableConfig;
+		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
 			return;
 		}
 
 		return {
-			Put: DynamoEntityManager.addVersionConditionExpression({
-				Item: this.addVersionToUpdateItem(tableConfig.marshal(entity), entity, tableConfig),
-				TableName: tableConfig.tableName,
-			}, entity, tableConfig),
+			Put: this.addVersionConditionExpression(
+			{
+					Item: DynamoEntityManager.addVersionToUpdateItem(
+						tableConfig.marshal(trackedEntity.entity),
+						trackedEntity,
+						tableConfig,
+					),
+					TableName: tableConfig.tableName,
+				},
+				trackedEntity.entity,
+				tableConfig,
+			),
 		};
-	}
-
-	private entityHasChanged<E>(entity: E) {
-		return JSON.stringify(entity) !== this.tracked.get(entity).initialStatus;
-	}
-
-	private addVersionToUpdateItem<Entity>(item: any, entity: Entity, tableConfig: ITableConfig<unknown>) {
-		if (tableConfig.versionKey !== undefined) {
-			item[tableConfig.versionKey] = this.tracked.get(entity).version + 1;
-		}
-
-		return item;
 	}
 }
