@@ -76,8 +76,8 @@ export class DynamoEntityManager {
 	}
 
 	private static isSameKey(k1: DocumentClient.Key, k2: DocumentClient.Key, config: ITableConfig<unknown>) {
-		return k1[config.keySchema.hash] === k1[config.keySchema.hash] &&
-			(config.keySchema.range === undefined || k2[config.keySchema.range] === k2[config.keySchema.range]);
+		return k1[config.keySchema.hash] === k2[config.keySchema.hash] &&
+			(config.keySchema.range === undefined || k1[config.keySchema.range] === k2[config.keySchema.range]);
 	}
 
 	/**
