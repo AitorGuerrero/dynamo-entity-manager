@@ -215,7 +215,7 @@ export class DynamoEntityManager {
 		entity: any,
 		tableConf: ITableConfig<unknown>,
 	) {
-		if (tableConf.versionKey !== undefined) {
+		if (tableConf.versionKey !== undefined && this.tracked.get(entity).version > 0) {
 			input.ConditionExpression = "#version=:version";
 			input.ExpressionAttributeNames = Object.assign(
 				{},
