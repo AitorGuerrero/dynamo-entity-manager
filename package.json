@@ -1,6 +1,6 @@
 {
   "name": "dynamo-entity-manager",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Entity manager for Amazon DynamoDB NoSQL database",
   "main": "index.js",
   "scripts": {
