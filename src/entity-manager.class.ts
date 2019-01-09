@@ -129,6 +129,7 @@ export class DynamoEntityManager {
 	 * @param version
 	 */
 	public track<E>(tableName: string, entity: E, version?: number) {
+		const tableConfig = this.tableConfigs[tableName];
 		if (entity === undefined) {
 			return;
 		}
@@ -142,8 +143,8 @@ export class DynamoEntityManager {
 			action: Action.update,
 			entity,
 			initialStatus: JSON.stringify(entity),
-			tableConfig: this.tableConfigs[tableName],
-			version,
+			tableConfig,
+			version: tableConfig.versionKey ? version || 0 : undefined,
 		});
 	}
 
@@ -154,6 +155,7 @@ export class DynamoEntityManager {
 	 * @param {E} entity
 	 */
 	public trackNew<E>(tableName: string, entity: E) {
+		const tableConfig = this.tableConfigs[tableName];
 		if (entity === undefined) {
 			return;
 		}
@@ -166,8 +168,8 @@ export class DynamoEntityManager {
 		this.tracked.set(entity, {
 			action: Action.create,
 			entity,
-			tableConfig: this.tableConfigs[tableName],
-			version: 0,
+			tableConfig,
+			version: tableConfig.versionKey ? 0 : undefined,
 		});
 	}
 
