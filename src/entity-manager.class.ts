@@ -277,7 +277,7 @@ export class DynamoEntityManager {
 			operations.push(this.flushEntity(entityConfig));
 		}
 
-		return operations;
+		return operations.filter((i) => i !== undefined);
 	}
 
 	private async processOperations(operations: DocumentClient.TransactWriteItem[]) {
