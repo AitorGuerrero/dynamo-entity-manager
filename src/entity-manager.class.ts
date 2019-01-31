@@ -247,17 +247,11 @@ export class DynamoEntityManager {
 		for (const entityConfig of this.tracked.values()) {
 			switch (entityConfig.action) {
 				case Action.create:
-					processes.push(
-						this.dc.put(this.createItemAsPut(entityConfig))
-							.catch((err) => this.eventEmitter.emit(EventType.error, err)),
-					);
+					processes.push(this.createItemAsPut(entityConfig));
 
 					break;
 				case Action.update:
-					processes.push(
-						this.dc.put(this.updateItemAsPut(entityConfig))
-							.catch((err) => this.eventEmitter.emit(EventType.error, err)),
-					);
+					processes.push(this.updateItemAsPut(entityConfig));
 
 					break;
 				case Action.delete:
@@ -292,32 +286,34 @@ export class DynamoEntityManager {
 		};
 	}
 
-	private createItemAsPut<E>(trackedEntity: ITrackedITem<E>): DynamoDB.PutItemInput {
+	private async createItemAsPut<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
 		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
 			return;
 		}
-		return {
+
+		await this.dc.put({
 			Item: DynamoEntityManager.addVersionToCreateItem(
 				trackedEntity.tableConfig.marshal(trackedEntity.entity),
 				trackedEntity.tableConfig,
 			),
 			TableName: trackedEntity.tableConfig.tableName,
-		};
+		});
 	}
 
-	private updateItemAsPut<E>(trackedEntity: ITrackedITem<E>): DynamoDB.PutItemInput {
+	private async updateItemAsPut<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
 		const tableConfig = trackedEntity.tableConfig;
 		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
 			return;
 		}
-		return this.addVersionConditionExpression({
+
+		await this.dc.put(this.addVersionConditionExpression({
 			Item: DynamoEntityManager.addVersionToUpdateItem(
 				tableConfig.marshal(trackedEntity.entity),
 				trackedEntity,
 				tableConfig,
 			),
 			TableName: trackedEntity.tableConfig.tableName,
-		}, trackedEntity.entity, trackedEntity.tableConfig);
+		}, trackedEntity.entity, trackedEntity.tableConfig));
 	}
 
 	private updateTrackedStatusAfterFlushing() {
