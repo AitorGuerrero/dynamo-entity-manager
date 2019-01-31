@@ -80,6 +80,8 @@ export class DynamoEntityManager {
 			(config.keySchema.range === undefined || k1[config.keySchema.range] === k2[config.keySchema.range]);
 	}
 
+	public transactional = true;
+
 	/**
 	 * Class event emitter.
 	 * The emitted event types are defined in EventType.
@@ -115,7 +117,11 @@ export class DynamoEntityManager {
 	public async flush() {
 		this.guardFlushing();
 		this.flushing = true;
-		await this.processOperations(this.buildOperations());
+		if (this.transactional) {
+			await this.flushTransactional();
+		} else {
+			await this.flushParallel();
+		}
 		this.updateTrackedStatusAfterFlushing();
 		this.flushing = false;
 		this.eventEmitter.emit(EventType.flushed);
@@ -232,6 +238,38 @@ export class DynamoEntityManager {
 		return input;
 	}
 
+	private async flushTransactional() {
+		await this.processOperations(this.buildOperations());
+	}
+
+	private async flushParallel() {
+		const processes: Array<Promise<any>> = [];
+		for (const entityConfig of this.tracked.values()) {
+			switch (entityConfig.action) {
+				case Action.create:
+					processes.push(
+						this.dc.put(this.createItemAsPut(entityConfig))
+							.catch((err) => this.eventEmitter.emit(EventType.error, err)),
+					);
+
+					break;
+				case Action.update:
+					processes.push(
+						this.dc.put(this.updateItemAsPut(entityConfig))
+							.catch((err) => this.eventEmitter.emit(EventType.error, err)),
+					);
+
+					break;
+				case Action.delete:
+					this.eventEmitter.emit(EventType.error, new Error("Delete entity not implemented"));
+
+					break;
+			}
+		}
+
+		await Promise.all(processes);
+	}
+
 	private deleteItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
 		return {
 			Delete: this.addVersionConditionExpression({
@@ -252,6 +290,34 @@ export class DynamoEntityManager {
 				},
 			),
 		};
+	}
+
+	private createItemAsPut<E>(trackedEntity: ITrackedITem<E>): DynamoDB.PutItemInput {
+		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
+			return;
+		}
+		return {
+			Item: DynamoEntityManager.addVersionToCreateItem(
+				trackedEntity.tableConfig.marshal(trackedEntity.entity),
+				trackedEntity.tableConfig,
+			),
+			TableName: trackedEntity.tableConfig.tableName,
+		};
+	}
+
+	private updateItemAsPut<E>(trackedEntity: ITrackedITem<E>): DynamoDB.PutItemInput {
+		const tableConfig = trackedEntity.tableConfig;
+		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
+			return;
+		}
+		return this.addVersionConditionExpression({
+			Item: DynamoEntityManager.addVersionToUpdateItem(
+				tableConfig.marshal(trackedEntity.entity),
+				trackedEntity,
+				tableConfig,
+			),
+			TableName: trackedEntity.tableConfig.tableName,
+		}, trackedEntity.entity, trackedEntity.tableConfig);
 	}
 
 	private updateTrackedStatusAfterFlushing() {
