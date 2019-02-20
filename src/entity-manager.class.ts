@@ -301,10 +301,4 @@ export class DynamoEntityManager {
 			marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
 		}, config);
 	}
-
-	private guardFlushing() {
-		if (this.flushing) {
-			throw new Error("Dynamo entity manager currently flushing");
-		}
-	}
 }

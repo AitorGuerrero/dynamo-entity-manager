@@ -39,6 +39,9 @@ export default class TransactionalEntityManager extends DynamoEntityManager {
 	}
 
 	private async processOperations(operations: DocumentClient.TransactWriteItem[]) {
+		if (operations.length > maxTransactWriteElems) {
+			this.eventEmitter.emit("maxTransactWriteElemsAlert");
+		}
 		for (let i = 0; i < operations.length; i += maxTransactWriteElems) {
 			await this.processOperationsChunk(operations.slice(i, i + maxTransactWriteElems));
 		}
