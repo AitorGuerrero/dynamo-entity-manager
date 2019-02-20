@@ -1,17 +1,14 @@
 import {DynamoDB} from "aws-sdk";
 import {EventEmitter} from "events";
 import IPoweredDynamo from "powered-dynamo/powered-dynamo.interface";
-import ErrorFlushingEntity from "./error.flushing.class";
 import {EventType} from "./event-type.enum";
 import {ITableConfig} from "./table-config.interface";
 
 import DocumentClient = DynamoDB.DocumentClient;
 
-const maxTransactWriteElems = 10;
+export enum Action {create, update, delete}
 
-enum Action {create, update, delete}
-
-interface ITrackedITem<Entity> {
+export interface ITrackedITem<Entity> {
 	action: Action;
 	initialStatus?: unknown;
 	entity: Entity;
@@ -19,47 +16,18 @@ interface ITrackedITem<Entity> {
 	version?: number;
 }
 
-type TrackedItems<E> = Map<any, ITrackedITem<E>>;
+export type TrackedItems<E> = Map<any, ITrackedITem<E>>;
 
 /**
  * @TODO updating only modified attributes instead of all the item.
  */
 export class DynamoEntityManager {
 
-	private static buildConditionExpression(entity: any, tableConf: ITableConfig<unknown>) {
-		const result: any = {
-			ConditionExpression: "#keyHash<>:keyHash",
-			ExpressionAttributeNames: {"#keyHash": tableConf.keySchema.hash},
-			ExpressionAttributeValues: {":keyHash": entity[tableConf.keySchema.hash]},
-		};
-		if (tableConf.keySchema.range !== undefined) {
-			result.ConditionExpression = result.ConditionExpression + " and #keyRange<>:keyRange";
-			result.ExpressionAttributeNames["#keyRange"] = tableConf.keySchema.range;
-			result.ExpressionAttributeValues[":keyRange"] = entity[tableConf.keySchema.range];
-		}
-
-		return result;
+	protected static entityHasChanged<Entity>(entity: ITrackedITem<Entity>) {
+		return JSON.stringify(entity.entity) !== entity.initialStatus;
 	}
 
-	private static getEntityKey<Entity>(entity: Entity, tableConfig: ITableConfig<unknown>) {
-		const key: DocumentClient.Key = {};
-		key[tableConfig.keySchema.hash] = (entity as any)[tableConfig.keySchema.hash];
-		if (tableConfig.keySchema.range) {
-			key[tableConfig.keySchema.range] = (entity as any)[tableConfig.keySchema.range];
-		}
-
-		return key;
-	}
-
-	private static addVersionToCreateItem<Entity>(item: any, tableConfig: ITableConfig<unknown>) {
-		if (tableConfig.versionKey !== undefined) {
-			item[tableConfig.versionKey] = 0;
-		}
-
-		return item;
-	}
-
-	private static addVersionToUpdateItem<Entity>(
+	protected static addVersionToUpdateItem<Entity>(
 		item: any,
 		trackedItem: ITrackedITem<Entity>,
 		tableConfig: ITableConfig<unknown>,
@@ -71,8 +39,22 @@ export class DynamoEntityManager {
 		return item;
 	}
 
-	private static entityHasChanged<Entity>(entity: ITrackedITem<Entity>) {
-		return JSON.stringify(entity.entity) !== entity.initialStatus;
+	protected static getEntityKey<Entity>(entity: Entity, tableConfig: ITableConfig<unknown>) {
+		const key: DocumentClient.Key = {};
+		key[tableConfig.keySchema.hash] = (entity as any)[tableConfig.keySchema.hash];
+		if (tableConfig.keySchema.range) {
+			key[tableConfig.keySchema.range] = (entity as any)[tableConfig.keySchema.range];
+		}
+
+		return key;
+	}
+
+	protected static addVersionToCreateItem<Entity>(item: any, tableConfig: ITableConfig<unknown>) {
+		if (tableConfig.versionKey !== undefined) {
+			item[tableConfig.versionKey] = 0;
+		}
+
+		return item;
 	}
 
 	private static isSameKey(k1: DocumentClient.Key, k2: DocumentClient.Key, config: ITableConfig<unknown>) {
@@ -80,17 +62,15 @@ export class DynamoEntityManager {
 			(config.keySchema.range === undefined || k1[config.keySchema.range] === k2[config.keySchema.range]);
 	}
 
-	public transactional = true;
-
 	/**
 	 * Class event emitter.
 	 * The emitted event types are defined in EventType.
 	 */
 	public readonly eventEmitter: EventEmitter;
 
+	protected tracked: TrackedItems<unknown> = new Map();
+	protected flushing: false | Promise<void> = false;
 	private readonly tableConfigs: {[tableName: string]: ITableConfig<unknown>} = {};
-	private tracked: TrackedItems<unknown> = new Map();
-	private flushing = false;
 
 	/**
 	 * @param {DocumentClient} dc
@@ -98,7 +78,7 @@ export class DynamoEntityManager {
 	 * @param {module:events.internal.EventEmitter} eventEmitter
 	 */
 	constructor(
-		private dc: IPoweredDynamo,
+		protected dc: IPoweredDynamo,
 		tableConfigs: Array<ITableConfig<any>>,
 		eventEmitter?: EventEmitter,
 	) {
@@ -115,16 +95,25 @@ export class DynamoEntityManager {
 	 * @returns {Promise<void>}
 	 */
 	public async flush() {
-		this.guardFlushing();
-		this.flushing = true;
-		if (this.transactional) {
-			await this.flushTransactional();
-		} else {
-			await this.flushParallel();
+		if (this.flushing === false) {
+			this.flushing = new Promise(async (rs, rj) => {
+				try {
+					await this.flushTracked();
+					this.updateTrackedStatusAfterFlushing();
+					this.flushing = false;
+					this.eventEmitter.emit(EventType.flushed);
+
+					rs();
+				} catch (err) {
+					this.flushing = false;
+					this.eventEmitter.emit("error", err);
+
+					rj(err);
+				}
+			});
 		}
-		this.updateTrackedStatusAfterFlushing();
-		this.flushing = false;
-		this.eventEmitter.emit(EventType.flushed);
+
+		return this.flushing;
 	}
 
 	/**
@@ -216,33 +205,7 @@ export class DynamoEntityManager {
 			.some((i) => DynamoEntityManager.isSameKey(i, key, this.tableConfigs[tableName]));
 	}
 
-	private addVersionConditionExpression<I>(
-		input: I & (DocumentClient.Put | DocumentClient.Delete),
-		entity: any,
-		tableConf: ITableConfig<unknown>,
-	) {
-		if (tableConf.versionKey !== undefined && this.tracked.get(entity).version > 0) {
-			input.ConditionExpression = "#version=:version";
-			input.ExpressionAttributeNames = Object.assign(
-				{},
-				input.ExpressionAttributeNames,
-				{"#version": tableConf.versionKey},
-			);
-			input.ExpressionAttributeValues = Object.assign(
-				{},
-				input.ExpressionAttributeValues,
-				{":version": this.tracked.get(entity).version},
-			);
-		}
-
-		return input;
-	}
-
-	private async flushTransactional() {
-		await this.processOperations(this.buildOperations());
-	}
-
-	private async flushParallel() {
+	protected async flushTracked() {
 		const processes: Array<Promise<any>> = [];
 		for (const entityConfig of this.tracked.values()) {
 			switch (entityConfig.action) {
@@ -264,26 +227,26 @@ export class DynamoEntityManager {
 		await Promise.all(processes);
 	}
 
-	private deleteItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
-		return {
-			Delete: this.addVersionConditionExpression({
-				Key: DynamoEntityManager.getEntityKey(trackedEntity.entity, trackedEntity.tableConfig),
-				TableName: trackedEntity.tableConfig.tableName,
-			}, trackedEntity.entity, trackedEntity.tableConfig),
-		};
-	}
+	protected addVersionConditionExpression<I>(
+		input: I & (DocumentClient.Put | DocumentClient.Delete),
+		entity: any,
+		tableConf: ITableConfig<unknown>,
+	) {
+		if (tableConf.versionKey !== undefined && this.tracked.get(entity).version > 0) {
+			input.ConditionExpression = "#version=:version";
+			input.ExpressionAttributeNames = Object.assign(
+				{},
+				input.ExpressionAttributeNames,
+				{"#version": tableConf.versionKey},
+			);
+			input.ExpressionAttributeValues = Object.assign(
+				{},
+				input.ExpressionAttributeValues,
+				{":version": this.tracked.get(entity).version},
+			);
+		}
 
-	private createItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
-		const marshaledEntity = trackedEntity.tableConfig.marshal(trackedEntity.entity);
-		return {
-			Put: Object.assign(
-				DynamoEntityManager.buildConditionExpression(marshaledEntity, trackedEntity.tableConfig),
-				{
-					Item: DynamoEntityManager.addVersionToCreateItem(marshaledEntity, trackedEntity.tableConfig),
-					TableName: trackedEntity.tableConfig.tableName,
-				},
-			),
-		};
+		return input;
 	}
 
 	private async createItemAsPut<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
@@ -333,80 +296,15 @@ export class DynamoEntityManager {
 		});
 	}
 
-	private buildOperations() {
-		const operations: DocumentClient.TransactWriteItem[] = [];
-		for (const entityConfig of this.tracked.values()) {
-			operations.push(this.flushEntity(entityConfig));
-		}
-
-		return operations.filter((i) => i !== undefined);
-	}
-
-	private async processOperations(operations: DocumentClient.TransactWriteItem[]) {
-		for (let i = 0; i < operations.length; i += maxTransactWriteElems) {
-			await this.processOperationsChunk(operations.slice(i, i + maxTransactWriteElems));
-		}
-	}
-
-	private async processOperationsChunk(operationsChunk: DocumentClient.TransactWriteItem[]) {
-		try {
-			await this.asyncTransaction({
-				TransactItems: operationsChunk,
-			});
-		} catch (err) {
-			this.flushing = false;
-			this.eventEmitter.emit(EventType.error, new ErrorFlushingEntity(err));
-
-			throw err;
-		}
-	}
-
 	private addTableConfig(config: ITableConfig<any>) {
 		this.tableConfigs[config.tableName] = Object.assign({
 			marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
 		}, config);
 	}
 
-	private flushEntity<E>(entityConfig: ITrackedITem<E>): DynamoDB.TransactWriteItem {
-		switch (entityConfig.action) {
-			case Action.update:
-				return this.updateItem(entityConfig);
-			case Action.delete:
-				return this.deleteItem(entityConfig);
-			case Action.create:
-				return this.createItem(entityConfig);
-		}
-	}
-
 	private guardFlushing() {
 		if (this.flushing) {
 			throw new Error("Dynamo entity manager currently flushing");
 		}
-	}
-
-	private asyncTransaction(request: DocumentClient.TransactWriteItemsInput) {
-		return this.dc.transactWrite(request);
-	}
-
-	private updateItem<Entity>(trackedEntity: ITrackedITem<Entity>): DocumentClient.TransactWriteItem {
-		const tableConfig = trackedEntity.tableConfig;
-		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
-			return;
-		}
-
-		return {
-			Put: this.addVersionConditionExpression(
-			{
-					Item: DynamoEntityManager.addVersionToUpdateItem(
-						tableConfig.marshal(trackedEntity.entity),
-						trackedEntity,
-						tableConfig,
-					),
-					TableName: tableConfig.tableName,
-				},
-				trackedEntity.entity,
-				tableConfig,
-			),
-		};
 	}
 }
