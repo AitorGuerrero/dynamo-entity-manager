@@ -210,15 +210,15 @@ export class DynamoEntityManager {
 		for (const entityConfig of this.tracked.values()) {
 			switch (entityConfig.action) {
 				case Action.create:
-					processes.push(this.createItemAsPut(entityConfig));
+					processes.push(this.createItem(entityConfig));
 
 					break;
 				case Action.update:
-					processes.push(this.updateItemAsPut(entityConfig));
+					processes.push(this.updateItem(entityConfig));
 
 					break;
 				case Action.delete:
-					this.eventEmitter.emit(EventType.error, new Error("Delete entity not implemented"));
+					processes.push(this.deleteItem(entityConfig));
 
 					break;
 			}
@@ -249,7 +249,7 @@ export class DynamoEntityManager {
 		return input;
 	}
 
-	private async createItemAsPut<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
+	private async createItem<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
 		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
 			return;
 		}
@@ -263,7 +263,7 @@ export class DynamoEntityManager {
 		});
 	}
 
-	private async updateItemAsPut<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
+	private async updateItem<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
 		const tableConfig = trackedEntity.tableConfig;
 		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
 			return;
@@ -275,7 +275,16 @@ export class DynamoEntityManager {
 				trackedEntity,
 				tableConfig,
 			),
-			TableName: trackedEntity.tableConfig.tableName,
+			TableName: tableConfig.tableName,
+		}, trackedEntity.entity, trackedEntity.tableConfig));
+	}
+
+	private async deleteItem<E>(trackedEntity: ITrackedITem<E>) {
+		const tableConfig = trackedEntity.tableConfig;
+
+		await this.dc.delete(this.addVersionConditionExpression({
+			Key: DynamoEntityManager.getEntityKey(trackedEntity.entity, trackedEntity.tableConfig),
+			TableName: tableConfig.tableName,
 		}, trackedEntity.entity, trackedEntity.tableConfig));
 	}
 

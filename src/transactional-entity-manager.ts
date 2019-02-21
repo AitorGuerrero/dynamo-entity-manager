@@ -10,6 +10,19 @@ const maxTransactWriteElems = 10;
 
 export default class TransactionalEntityManager extends DynamoEntityManager {
 
+	private static createItemTransactional<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
+		const marshaledEntity = trackedEntity.tableConfig.marshal(trackedEntity.entity);
+		return {
+			Put: Object.assign(
+				TransactionalEntityManager.buildConditionExpression(marshaledEntity, trackedEntity.tableConfig),
+				{
+					Item: DynamoEntityManager.addVersionToCreateItem(marshaledEntity, trackedEntity.tableConfig),
+					TableName: trackedEntity.tableConfig.tableName,
+				},
+			),
+		};
+	}
+
 	private static buildConditionExpression(entity: any, tableConf: ITableConfig<unknown>) {
 		const result: any = {
 			ConditionExpression: "#keyHash<>:keyHash",
@@ -63,11 +76,11 @@ export default class TransactionalEntityManager extends DynamoEntityManager {
 	private flushEntity<E>(entityConfig: ITrackedITem<E>): DynamoDB.TransactWriteItem {
 		switch (entityConfig.action) {
 			case Action.update:
-				return this.updateItem(entityConfig);
+				return this.updateItemTransactional(entityConfig);
 			case Action.delete:
-				return this.deleteItem(entityConfig);
+				return this.deleteItemTransactional(entityConfig);
 			case Action.create:
-				return this.createItem(entityConfig);
+				return TransactionalEntityManager.createItemTransactional(entityConfig);
 		}
 	}
 
@@ -75,7 +88,7 @@ export default class TransactionalEntityManager extends DynamoEntityManager {
 		return this.dc.transactWrite(request);
 	}
 
-	private updateItem<Entity>(trackedEntity: ITrackedITem<Entity>): DocumentClient.TransactWriteItem {
+	private updateItemTransactional<Entity>(trackedEntity: ITrackedITem<Entity>): DocumentClient.TransactWriteItem {
 		const tableConfig = trackedEntity.tableConfig;
 		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
 			return;
@@ -97,25 +110,12 @@ export default class TransactionalEntityManager extends DynamoEntityManager {
 		};
 	}
 
-	private deleteItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
+	private deleteItemTransactional<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
 		return {
 			Delete: this.addVersionConditionExpression({
 				Key: DynamoEntityManager.getEntityKey(trackedEntity.entity, trackedEntity.tableConfig),
 				TableName: trackedEntity.tableConfig.tableName,
 			}, trackedEntity.entity, trackedEntity.tableConfig),
-		};
-	}
-
-	private createItem<E>(trackedEntity: ITrackedITem<E>): DynamoDB.TransactWriteItem {
-		const marshaledEntity = trackedEntity.tableConfig.marshal(trackedEntity.entity);
-		return {
-			Put: Object.assign(
-				TransactionalEntityManager.buildConditionExpression(marshaledEntity, trackedEntity.tableConfig),
-				{
-					Item: DynamoEntityManager.addVersionToCreateItem(marshaledEntity, trackedEntity.tableConfig),
-					TableName: trackedEntity.tableConfig.tableName,
-				},
-			),
 		};
 	}
 }
