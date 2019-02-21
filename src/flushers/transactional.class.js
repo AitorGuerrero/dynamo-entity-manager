@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
 const error_flushing_class_1 = require("../error.flushing.class");
-const event_type_enum_1 = require("../event-type.enum");
 const created_class_1 = require("../tracked-items/created.class");
 const deleted_class_1 = require("../tracked-items/deleted.class");
 const updated_class_1 = require("../tracked-items/updated.class");
@@ -103,7 +102,7 @@ class TransactionalFlusher {
         }
         catch (err) {
             this.flushing = false;
-            this.eventEmitter.emit(event_type_enum_1.EventType.error, new error_flushing_class_1.default(err));
+            this.eventEmitter.emit("error", new error_flushing_class_1.default(err));
             throw err;
         }
     }

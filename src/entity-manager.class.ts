@@ -1,6 +1,5 @@
 import {DynamoDB} from "aws-sdk";
 import {EventEmitter} from "events";
-import {EventType} from "./event-type.enum";
 import IFlusher from "./flushers/flusher.interface";
 import {ITableConfig} from "./table-config.interface";
 import CreatedTrackedItem from "./tracked-items/created.class";
@@ -12,10 +11,15 @@ import DocumentClient = DynamoDB.DocumentClient;
 
 export type TrackedItems<E> = Map<any, TrackedItem<E>>;
 
+export enum EventType {
+	flushed = "flushed",
+	error = "error",
+}
+
 /**
  * @TODO updating only modified attributes instead of all the item.
  */
-export class DynamoEntityManager {
+export default class DynamoEntityManager {
 
 	private static isSameKey(k1: DocumentClient.Key, k2: DocumentClient.Key, config: ITableConfig<unknown>) {
 		return k1[config.keySchema.hash] === k2[config.keySchema.hash] &&

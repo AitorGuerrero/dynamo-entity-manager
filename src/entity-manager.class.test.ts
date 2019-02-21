@@ -2,9 +2,8 @@ import {DynamoDB} from "aws-sdk";
 import {expect} from "chai";
 import {beforeEach, describe, it} from "mocha";
 import PoweredDynamo from "powered-dynamo/powered-dynamo.class";
-import {DynamoEntityManager} from "./entity-manager.class";
+import {DynamoEntityManager, TransactionalFlusher} from "../";
 import {FakeDocumentClient} from "./fake-document-client.class";
-import TransactionalFlusher from "./flushers/transactional.class";
 import {ITableConfig} from "./table-config.interface";
 
 describe("Having a class entity type", () => {
