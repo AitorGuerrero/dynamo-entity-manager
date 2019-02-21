@@ -94,7 +94,7 @@ export default class TransactionalFlusher implements IFlusher {
 		};
 	}
 
-	protected flushing: false | Promise<void> = false;
+	private flushing: false | Promise<void> = false;
 
 	/**
 	 * @param {DocumentClient} dc
@@ -102,7 +102,7 @@ export default class TransactionalFlusher implements IFlusher {
 	 * @param options
 	 */
 	constructor(
-		protected dc: IPoweredDynamo,
+		private dc: IPoweredDynamo,
 		private options: {
 			onItemsLimitFallbackFlusher?: IFlusher,
 		} = {},

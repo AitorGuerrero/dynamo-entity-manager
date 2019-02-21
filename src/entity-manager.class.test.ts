@@ -4,6 +4,7 @@ import {beforeEach, describe, it} from "mocha";
 import PoweredDynamo from "powered-dynamo/powered-dynamo.class";
 import {DynamoEntityManager, TransactionalFlusher} from "../";
 import {FakeDocumentClient} from "./fake-document-client.class";
+import ParallelFlusher from "./flushers/parallel.class";
 import {ITableConfig} from "./table-config.interface";
 
 describe("Having a class entity type", () => {
@@ -30,9 +31,11 @@ describe("Having a class entity type", () => {
 
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({[tableName]: keySchema});
+		const poweredDynamo = new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient);
 		entityManager = new DynamoEntityManager(
 			new TransactionalFlusher(
-				new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient),
+				poweredDynamo,
+				{onItemsLimitFallbackFlusher: new ParallelFlusher(poweredDynamo)},
 			),
 			[tableConfig],
 		);
