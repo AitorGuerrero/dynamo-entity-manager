@@ -103,10 +103,10 @@ export default class TransactionalFlusher implements IFlusher {
 	 */
 	constructor(
 		protected dc: IPoweredDynamo,
-		public readonly eventEmitter = new EventEmitter(),
 		private options: {
 			onItemsLimitFallbackFlusher?: IFlusher,
 		} = {},
+		public readonly eventEmitter = new EventEmitter(),
 	) {
 	}
 

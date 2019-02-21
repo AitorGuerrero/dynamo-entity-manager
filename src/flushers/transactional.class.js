@@ -16,10 +16,10 @@ class TransactionalFlusher {
      * @param {module:events.internal.EventEmitter} eventEmitter
      * @param options
      */
-    constructor(dc, eventEmitter = new events_1.EventEmitter(), options = {}) {
+    constructor(dc, options = {}, eventEmitter = new events_1.EventEmitter()) {
         this.dc = dc;
-        this.eventEmitter = eventEmitter;
         this.options = options;
+        this.eventEmitter = eventEmitter;
         this.flushing = false;
     }
     static flushEntity(trackedItem) {
