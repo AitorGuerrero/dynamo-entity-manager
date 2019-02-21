@@ -9,8 +9,8 @@ in that data base), and that when flushing, it persist the state change in that 
 not allow it. You have te take care of making the services as small as posible, and managing possible persisting errors.
 
 ### Prerequisites
-
 Requires aws-sdk package (if executed in AWS Lambda, it is already installed).
+For transactional flush, aws-sdk should be included in your lambda, as installed in cloud is an old version.
 
 ```
 npm install --save-dev aws-sdk

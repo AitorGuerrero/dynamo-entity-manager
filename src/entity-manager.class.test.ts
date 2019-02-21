@@ -4,8 +4,8 @@ import {beforeEach, describe, it} from "mocha";
 import PoweredDynamo from "powered-dynamo/powered-dynamo.class";
 import {DynamoEntityManager} from "./entity-manager.class";
 import {FakeDocumentClient} from "./fake-document-client.class";
+import TransactionalFlusher from "./flushers/transactional.class";
 import {ITableConfig} from "./table-config.interface";
-import TransactionalEntityManager from "./transactional-entity-manager";
 
 describe("Having a class entity type", () => {
 	interface IEntity {
@@ -31,8 +31,10 @@ describe("Having a class entity type", () => {
 
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({[tableName]: keySchema});
-		entityManager = new TransactionalEntityManager(
-			new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient),
+		entityManager = new DynamoEntityManager(
+			new TransactionalFlusher(
+				new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient),
+			),
 			[tableConfig],
 		);
 	});

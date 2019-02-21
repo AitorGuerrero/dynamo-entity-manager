@@ -1,61 +1,21 @@
 import {DynamoDB} from "aws-sdk";
 import {EventEmitter} from "events";
-import IPoweredDynamo from "powered-dynamo/powered-dynamo.interface";
 import {EventType} from "./event-type.enum";
+import IFlusher from "./flushers/flusher.interface";
 import {ITableConfig} from "./table-config.interface";
+import CreatedTrackedItem from "./tracked-items/created.class";
+import DeletedTrackedItem from "./tracked-items/deleted.class";
+import TrackedItem from "./tracked-items/tracked-item.class";
+import UpdatedTrackedItem from "./tracked-items/updated.class";
 
 import DocumentClient = DynamoDB.DocumentClient;
 
-export enum Action {create, update, delete}
-
-export interface ITrackedITem<Entity> {
-	action: Action;
-	initialStatus?: unknown;
-	entity: Entity;
-	tableConfig: ITableConfig<Entity>;
-	version?: number;
-}
-
-export type TrackedItems<E> = Map<any, ITrackedITem<E>>;
+export type TrackedItems<E> = Map<any, TrackedItem<E>>;
 
 /**
  * @TODO updating only modified attributes instead of all the item.
  */
 export class DynamoEntityManager {
-
-	protected static entityHasChanged<Entity>(entity: ITrackedITem<Entity>) {
-		return JSON.stringify(entity.entity) !== entity.initialStatus;
-	}
-
-	protected static addVersionToUpdateItem<Entity>(
-		item: any,
-		trackedItem: ITrackedITem<Entity>,
-		tableConfig: ITableConfig<unknown>,
-	) {
-		if (tableConfig.versionKey !== undefined) {
-			item[tableConfig.versionKey] = trackedItem.version + 1;
-		}
-
-		return item;
-	}
-
-	protected static getEntityKey<Entity>(entity: Entity, tableConfig: ITableConfig<unknown>) {
-		const key: DocumentClient.Key = {};
-		key[tableConfig.keySchema.hash] = (entity as any)[tableConfig.keySchema.hash];
-		if (tableConfig.keySchema.range) {
-			key[tableConfig.keySchema.range] = (entity as any)[tableConfig.keySchema.range];
-		}
-
-		return key;
-	}
-
-	protected static addVersionToCreateItem<Entity>(item: any, tableConfig: ITableConfig<unknown>) {
-		if (tableConfig.versionKey !== undefined) {
-			item[tableConfig.versionKey] = 0;
-		}
-
-		return item;
-	}
 
 	private static isSameKey(k1: DocumentClient.Key, k2: DocumentClient.Key, config: ITableConfig<unknown>) {
 		return k1[config.keySchema.hash] === k2[config.keySchema.hash] &&
@@ -73,12 +33,12 @@ export class DynamoEntityManager {
 	private readonly tableConfigs: {[tableName: string]: ITableConfig<unknown>} = {};
 
 	/**
-	 * @param {DocumentClient} dc
 	 * @param {Array<ITableConfig<any>>} tableConfigs
+	 * @param flusher
 	 * @param {module:events.internal.EventEmitter} eventEmitter
 	 */
 	constructor(
-		protected dc: IPoweredDynamo,
+		private flusher: IFlusher,
 		tableConfigs: Array<ITableConfig<any>>,
 		eventEmitter?: EventEmitter,
 	) {
@@ -98,7 +58,7 @@ export class DynamoEntityManager {
 		if (this.flushing === false) {
 			this.flushing = new Promise(async (rs, rj) => {
 				try {
-					await this.flushTracked();
+					await this.flusher.flush(this.tracked);
 					this.updateTrackedStatusAfterFlushing();
 					this.flushing = false;
 					this.eventEmitter.emit(EventType.flushed);
@@ -118,54 +78,33 @@ export class DynamoEntityManager {
 
 	/**
 	 * Tracks a existing entity in the DB. When flushing, it saves the diferences with the state in moment of tracking.
-	 * @TODO If a entity does not exists with the key, it fails.
 	 * @param {string} tableName
 	 * @param {E} entity
 	 * @param version
 	 */
 	public track<E>(tableName: string, entity: E, version?: number) {
-		const tableConfig = this.tableConfigs[tableName];
 		if (entity === undefined) {
 			return;
 		}
-		if (this.tracked.has(entity)) {
-			return;
-		}
-		if (this.keyIsTracked(tableName, DynamoEntityManager.getEntityKey(entity, this.tableConfigs[tableName]))) {
-			throw new Error("Key is in use");
-		}
-		this.tracked.set(entity, {
-			action: Action.update,
+		const tableConfig = this.tableConfigs[tableName];
+		this.addTrackedItem(new UpdatedTrackedItem(
 			entity,
-			initialStatus: JSON.stringify(entity),
 			tableConfig,
-			version: tableConfig.versionKey ? version || 0 : undefined,
-		});
+			tableConfig.versionKey ? version || 0 : undefined,
+		));
 	}
 
 	/**
 	 * Creates a entity in the DB. When flusing , it puts the entity in the DB.
-	 * @TODO If a entity exists with the key, it fails.
 	 * @param {string} tableName
 	 * @param {E} entity
 	 */
 	public trackNew<E>(tableName: string, entity: E) {
-		const tableConfig = this.tableConfigs[tableName];
 		if (entity === undefined) {
 			return;
 		}
-		if (this.tracked.has(entity)) {
-			return;
-		}
-		if (this.keyIsTracked(tableName, DynamoEntityManager.getEntityKey(entity, this.tableConfigs[tableName]))) {
-			throw new Error("Key is in use");
-		}
-		this.tracked.set(entity, {
-			action: Action.create,
-			entity,
-			tableConfig,
-			version: tableConfig.versionKey ? 0 : undefined,
-		});
+		const tableConfig = this.tableConfigs[tableName];
+		this.addTrackedItem(new CreatedTrackedItem(entity, tableConfig));
 	}
 
 	/**
@@ -179,15 +118,14 @@ export class DynamoEntityManager {
 		}
 		if (
 			this.tracked.has(entity)
-			&& this.tracked.get(entity).action === Action.create
+			&& this.tracked.get(entity) instanceof CreatedTrackedItem
 		) {
 			this.tracked.delete(entity);
 		} else {
-			this.tracked.set(entity, {
-				action: Action.delete,
+			this.tracked.set(entity, new DeletedTrackedItem(
 				entity,
-				tableConfig: this.tableConfigs[tableName],
-			});
+				this.tableConfigs[tableName],
+			));
 		}
 	}
 
@@ -201,106 +139,18 @@ export class DynamoEntityManager {
 	public keyIsTracked(tableName: string, key: DocumentClient.Key) {
 		return Array.from(this.tracked.values())
 			.filter((i) => i.tableConfig.tableName === tableName)
-			.map((i) => DynamoEntityManager.getEntityKey(i.entity, this.tableConfigs[tableName]))
+			.map((i) => i.getEntityKey())
 			.some((i) => DynamoEntityManager.isSameKey(i, key, this.tableConfigs[tableName]));
 	}
 
-	protected async flushTracked() {
-		const processes: Array<Promise<any>> = [];
-		for (const entityConfig of this.tracked.values()) {
-			switch (entityConfig.action) {
-				case Action.create:
-					processes.push(this.createItem(entityConfig));
-
-					break;
-				case Action.update:
-					processes.push(this.updateItem(entityConfig));
-
-					break;
-				case Action.delete:
-					processes.push(this.deleteItem(entityConfig));
-
-					break;
-			}
-		}
-
-		await Promise.all(processes);
-	}
-
-	protected addVersionConditionExpression<I>(
-		input: I & (DocumentClient.Put | DocumentClient.Delete),
-		entity: any,
-		tableConf: ITableConfig<unknown>,
-	) {
-		if (tableConf.versionKey !== undefined && this.tracked.get(entity).version > 0) {
-			input.ConditionExpression = "#version=:version";
-			input.ExpressionAttributeNames = Object.assign(
-				{},
-				input.ExpressionAttributeNames,
-				{"#version": tableConf.versionKey},
-			);
-			input.ExpressionAttributeValues = Object.assign(
-				{},
-				input.ExpressionAttributeValues,
-				{":version": this.tracked.get(entity).version},
-			);
-		}
-
-		return input;
-	}
-
-	private async createItem<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
-		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
-			return;
-		}
-
-		await this.dc.put({
-			Item: DynamoEntityManager.addVersionToCreateItem(
-				trackedEntity.tableConfig.marshal(trackedEntity.entity),
-				trackedEntity.tableConfig,
-			),
-			TableName: trackedEntity.tableConfig.tableName,
-		});
-	}
-
-	private async updateItem<E>(trackedEntity: ITrackedITem<E>): Promise<unknown> {
-		const tableConfig = trackedEntity.tableConfig;
-		if (!DynamoEntityManager.entityHasChanged(trackedEntity)) {
-			return;
-		}
-
-		await this.dc.put(this.addVersionConditionExpression({
-			Item: DynamoEntityManager.addVersionToUpdateItem(
-				tableConfig.marshal(trackedEntity.entity),
-				trackedEntity,
-				tableConfig,
-			),
-			TableName: tableConfig.tableName,
-		}, trackedEntity.entity, trackedEntity.tableConfig));
-	}
-
-	private async deleteItem<E>(trackedEntity: ITrackedITem<E>) {
-		const tableConfig = trackedEntity.tableConfig;
-
-		await this.dc.delete(this.addVersionConditionExpression({
-			Key: DynamoEntityManager.getEntityKey(trackedEntity.entity, trackedEntity.tableConfig),
-			TableName: tableConfig.tableName,
-		}, trackedEntity.entity, trackedEntity.tableConfig));
-	}
-
 	private updateTrackedStatusAfterFlushing() {
-		this.tracked.forEach((value, key) => {
-			switch (value.action) {
-				case Action.create:
-					value.action = Action.update;
-					value.initialStatus = JSON.stringify(value.entity);
-					break;
-				case Action.update:
-					value.initialStatus = JSON.stringify(value.entity);
-					break;
-				case Action.delete:
-					this.tracked.delete(key);
-					break;
+		this.tracked.forEach((value: TrackedItem<unknown>, key) => {
+			if (value instanceof CreatedTrackedItem) {
+				this.tracked.set(value.entity, value.toUpdate());
+			} else if (value instanceof UpdatedTrackedItem) {
+				value.setState();
+			} else if (value instanceof DeletedTrackedItem) {
+				this.tracked.delete(key);
 			}
 		});
 	}
@@ -309,5 +159,15 @@ export class DynamoEntityManager {
 		this.tableConfigs[config.tableName] = Object.assign({
 			marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
 		}, config);
+	}
+
+	private addTrackedItem(trackedItem: TrackedItem<unknown>) {
+		if (this.tracked.has(trackedItem.entity)) {
+			return;
+		}
+		if (this.keyIsTracked(trackedItem.tableConfig.tableName, trackedItem.getEntityKey())) {
+			throw new Error("Key is in use");
+		}
+		this.tracked.set(trackedItem.entity, trackedItem);
 	}
 }
