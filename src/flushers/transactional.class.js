@@ -8,15 +8,18 @@ const updated_class_1 = require("../tracked-items/updated.class");
 const add_version_condition_expression_function_1 = require("./add-version-condition-expression.function");
 const add_version_to_create_item_function_1 = require("./add-version-to-create-item.function");
 const add_version_to_update_item_function_1 = require("./add-version-to-update-item.function");
+const error_transaction_items_limit_reached_class_1 = require("./error.transaction-items-limit-reached.class");
 const maxTransactWriteElems = 10;
 class TransactionalFlusher {
     /**
      * @param {DocumentClient} dc
      * @param {module:events.internal.EventEmitter} eventEmitter
+     * @param options
      */
-    constructor(dc, eventEmitter = new events_1.EventEmitter()) {
+    constructor(dc, eventEmitter = new events_1.EventEmitter(), options = {}) {
         this.dc = dc;
         this.eventEmitter = eventEmitter;
+        this.options = options;
         this.flushing = false;
     }
     static flushEntity(trackedItem) {
@@ -77,7 +80,17 @@ class TransactionalFlusher {
      * @returns {Promise<void>}
      */
     async flush(tracked) {
-        await this.processOperations(this.buildOperations(tracked));
+        try {
+            await this.processOperations(this.buildOperations(tracked));
+        }
+        catch (err) {
+            if (err instanceof error_transaction_items_limit_reached_class_1.default && this.options.onItemsLimitFallbackFlusher) {
+                await this.options.onItemsLimitFallbackFlusher.flush(tracked);
+            }
+            else {
+                throw err;
+            }
+        }
     }
     buildOperations(tracked) {
         const operations = [];
@@ -89,6 +102,7 @@ class TransactionalFlusher {
     async processOperations(operations) {
         if (operations.length > maxTransactWriteElems) {
             this.eventEmitter.emit("maxTransactWriteElemsAlert");
+            throw new error_transaction_items_limit_reached_class_1.default(operations.length);
         }
         for (let i = 0; i < operations.length; i += maxTransactWriteElems) {
             await this.processOperationsChunk(operations.slice(i, i + maxTransactWriteElems));

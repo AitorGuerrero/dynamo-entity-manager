@@ -11,6 +11,7 @@ import UpdatedTrackedItem from "../tracked-items/updated.class";
 import addVersionConditionExpression from "./add-version-condition-expression.function";
 import addVersionToCreateItem from "./add-version-to-create-item.function";
 import addVersionToUpdateItem from "./add-version-to-update-item.function";
+import TransactionItemsLimitReached from "./error.transaction-items-limit-reached.class";
 import IFlusher from "./flusher.interface";
 
 import DocumentClient = DynamoDB.DocumentClient;
@@ -98,10 +99,14 @@ export default class TransactionalFlusher implements IFlusher {
 	/**
 	 * @param {DocumentClient} dc
 	 * @param {module:events.internal.EventEmitter} eventEmitter
+	 * @param options
 	 */
 	constructor(
 		protected dc: IPoweredDynamo,
 		public readonly eventEmitter = new EventEmitter(),
+		private options: {
+			onItemsLimitFallbackFlusher?: IFlusher,
+		} = {},
 	) {
 	}
 
@@ -110,7 +115,15 @@ export default class TransactionalFlusher implements IFlusher {
 	 * @returns {Promise<void>}
 	 */
 	public async flush(tracked: TrackedItems<unknown>) {
-		await this.processOperations(this.buildOperations(tracked));
+		try {
+			await this.processOperations(this.buildOperations(tracked));
+		} catch (err) {
+			if (err instanceof TransactionItemsLimitReached && this.options.onItemsLimitFallbackFlusher) {
+				await this.options.onItemsLimitFallbackFlusher.flush(tracked);
+			} else {
+				throw err;
+			}
+		}
 	}
 
 	private buildOperations(tracked: TrackedItems<unknown>) {
@@ -125,6 +138,7 @@ export default class TransactionalFlusher implements IFlusher {
 	private async processOperations(operations: DocumentClient.TransactWriteItem[]) {
 		if (operations.length > maxTransactWriteElems) {
 			this.eventEmitter.emit("maxTransactWriteElemsAlert");
+			throw new TransactionItemsLimitReached(operations.length);
 		}
 		for (let i = 0; i < operations.length; i += maxTransactWriteElems) {
 			await this.processOperationsChunk(operations.slice(i, i + maxTransactWriteElems));
