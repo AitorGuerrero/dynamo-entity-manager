@@ -1,7 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const events_1 = require("events");
-const error_flushing_class_1 = require("../error.flushing.class");
 const created_class_1 = require("../tracked-items/created.class");
 const deleted_class_1 = require("../tracked-items/deleted.class");
 const updated_class_1 = require("../tracked-items/updated.class");
@@ -16,10 +14,9 @@ class TransactionalFlusher {
      * @param {module:events.internal.EventEmitter} eventEmitter
      * @param options
      */
-    constructor(dc, options = {}, eventEmitter = new events_1.EventEmitter()) {
+    constructor(dc, options = {}) {
         this.dc = dc;
         this.options = options;
-        this.eventEmitter = eventEmitter;
         this.flushing = false;
     }
     static flushEntity(trackedItem) {
@@ -101,7 +98,6 @@ class TransactionalFlusher {
     }
     async processOperations(operations) {
         if (operations.length > maxTransactWriteElems) {
-            this.eventEmitter.emit("maxTransactWriteElemsAlert");
             throw new error_transaction_items_limit_reached_class_1.default(operations.length);
         }
         for (let i = 0; i < operations.length; i += maxTransactWriteElems) {
@@ -116,7 +112,6 @@ class TransactionalFlusher {
         }
         catch (err) {
             this.flushing = false;
-            this.eventEmitter.emit("error", new error_flushing_class_1.default(err));
             throw err;
         }
     }

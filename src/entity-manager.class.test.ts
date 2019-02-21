@@ -4,10 +4,10 @@ import {beforeEach, describe, it} from "mocha";
 import PoweredDynamo from "powered-dynamo/powered-dynamo.class";
 import {DynamoEntityManager, TransactionalFlusher} from "../";
 import {FakeDocumentClient} from "./fake-document-client.class";
-import ParallelFlusher from "./flushers/parallel.class";
+import TransactionItemsLimitReached from "./flushers/error.transaction-items-limit-reached.class";
 import {ITableConfig} from "./table-config.interface";
 
-describe("Having a class entity type", () => {
+describe("Having entity manager with transactional flusher", () => {
 	interface IEntity {
 		hashAttr: string;
 		rangeAttr: string;
@@ -17,10 +17,12 @@ describe("Having a class entity type", () => {
 
 	const tableName = "entityTable";
 	const versionKey = "v";
-	const keySchema = [{KeyType: "HASH", AttributeName: "hashAttr"}, {KeyType: "RANGE", AttributeName: "rangeAttr"}];
+	const hashAttr = "hashAttr";
+	const rangeAttr = "rangeAttr";
+	const keySchema = [{KeyType: "HASH", AttributeName: hashAttr}, {KeyType: "RANGE", AttributeName: rangeAttr}];
 	const marshal = (e: IEntity) => Object.assign(JSON.parse(JSON.stringify(e)), {marshaled: true});
 	const tableConfig: ITableConfig<any> = {
-		keySchema: {hash: "hashAttr", range: "rangeAttr"},
+		keySchema: {hash: hashAttr, range: rangeAttr},
 		marshal,
 		tableName,
 		versionKey,
@@ -33,17 +35,11 @@ describe("Having a class entity type", () => {
 		documentClient = new FakeDocumentClient({[tableName]: keySchema});
 		const poweredDynamo = new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient);
 		entityManager = new DynamoEntityManager(
-			new TransactionalFlusher(
-				poweredDynamo,
-				{onItemsLimitFallbackFlusher: new ParallelFlusher(poweredDynamo)},
-			),
+			new TransactionalFlusher(poweredDynamo),
 			[tableConfig],
 		);
 	});
-	describe("when creating a entity", () => {
-		const hashAttr = "entityHashAttr";
-		const rangeAttr = "entityRangeAttr";
-
+	describe("and creating a entity", () => {
 		let entity: IEntity;
 
 		beforeEach(() => {
@@ -76,10 +72,17 @@ describe("Having a class entity type", () => {
 				expect(persisted.v).to.be.eq(0);
 			});
 		});
+		describe("and deleting the entity", () => {
+			beforeEach(() => entityManager.delete(tableName, entity));
+			describe("and flushing", () => {
+				beforeEach(() => entityManager.flush());
+				it("should not persist the entity", () => {
+					expect(documentClient.getByKey(tableName, {[hashAttr]: hashAttr, [rangeAttr]: rangeAttr})).to.be.undefined;
+				});
+			});
+		});
 	});
 	describe("and a existent entity", () => {
-		const hashAttr = "entityHashAttr";
-		const rangeAttr = "entityRangeAttr";
 		const originalUpdatableValue = "originalUpdatableValue";
 
 		let entity: IEntity;
@@ -118,5 +121,56 @@ describe("Having a class entity type", () => {
 				});
 			});
 		});
+	});
+	describe("and Dynamo TransactWrite fails", () => {
+
+		let thrownError: Error;
+		let emittedError: Error;
+		const documentClientError = new Error();
+
+		beforeEach(async () => {
+			entityManager.trackNew(tableName, {
+				hashAttr,
+				marshaled: false,
+				rangeAttr,
+				updatableValue: null,
+			});
+			entityManager.eventEmitter.on("error", (err) => emittedError = err);
+			documentClient.failOnCall(documentClientError);
+			await entityManager.flush().catch((err) => thrownError = err);
+		});
+
+		it("should emit error", () => expect(emittedError).to.be.equal(documentClientError));
+		it("should resolve promise to error", () => expect(thrownError).to.be.equal(documentClientError));
+	});
+	describe("and there are more than 10 updates to be done", () => {
+		let thrownError: Error;
+		let emittedError: Error;
+
+		beforeEach(async () => {
+			for (let i = 0; i < 11; i++) {
+				entityManager.trackNew(
+					tableName,
+					{
+						hashAttr: `hash_${i}`,
+						marshaled: false,
+						rangeAttr: `range_${i}`,
+						updatableValue: null,
+					});
+			}
+			entityManager.eventEmitter.on("error", (err) => emittedError = err);
+			await entityManager.flush().catch((err) => thrownError = err);
+		});
+		it("should emit error", () => expect(emittedError).to.be.instanceOf(TransactionItemsLimitReached));
+		it("should resolve promise to error", () => expect(thrownError).to.be.instanceOf(TransactionItemsLimitReached));
+	});
+	describe("and asking to track undefined", () => {
+		it("should not fail", () => entityManager.track(tableName, undefined));
+	});
+	describe("and asking to track new undefined", () => {
+		it("should not fail", () => entityManager.trackNew(tableName, undefined));
+	});
+	describe("and asking to delete undefined", () => {
+		it("should not fail", () => entityManager.delete(tableName, undefined));
 	});
 });

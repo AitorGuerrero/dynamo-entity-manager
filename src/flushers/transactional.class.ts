@@ -2,7 +2,6 @@ import {DynamoDB} from "aws-sdk";
 import {EventEmitter} from "events";
 import IPoweredDynamo from "powered-dynamo/powered-dynamo.interface";
 import {TrackedItems} from "../entity-manager.class";
-import ErrorFlushingEntity from "../error.flushing.class";
 import {ITableConfig} from "../table-config.interface";
 import CreatedTrackedItem from "../tracked-items/created.class";
 import DeletedTrackedItem from "../tracked-items/deleted.class";
@@ -106,7 +105,6 @@ export default class TransactionalFlusher implements IFlusher {
 		private options: {
 			onItemsLimitFallbackFlusher?: IFlusher,
 		} = {},
-		public readonly eventEmitter = new EventEmitter(),
 	) {
 	}
 
@@ -137,7 +135,6 @@ export default class TransactionalFlusher implements IFlusher {
 
 	private async processOperations(operations: DocumentClient.TransactWriteItem[]) {
 		if (operations.length > maxTransactWriteElems) {
-			this.eventEmitter.emit("maxTransactWriteElemsAlert");
 			throw new TransactionItemsLimitReached(operations.length);
 		}
 		for (let i = 0; i < operations.length; i += maxTransactWriteElems) {
@@ -152,7 +149,6 @@ export default class TransactionalFlusher implements IFlusher {
 			});
 		} catch (err) {
 			this.flushing = false;
-			this.eventEmitter.emit("error", new ErrorFlushingEntity(err));
 
 			throw err;
 		}
