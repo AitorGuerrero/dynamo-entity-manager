@@ -1,6 +1,7 @@
 .idea
 index.js
-src/*.js
+src/**/*.js
+src/**/*.js.map
 **/*.d.ts
 node_modules
 .nyc_output

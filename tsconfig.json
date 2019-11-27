@@ -3,7 +3,7 @@
         "module": "commonjs",
         "target": "esnext",
         "noImplicitAny": true,
-        "sourceMap": false,
+        "sourceMap": true,
         "declaration": false
     },
     "exclude": [

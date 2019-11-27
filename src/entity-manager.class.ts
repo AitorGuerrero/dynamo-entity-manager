@@ -9,7 +9,7 @@ import UpdatedTrackedItem from "./tracked-items/updated.class";
 
 import DocumentClient = DynamoDB.DocumentClient;
 
-export type TrackedItems<E> = Map<any, TrackedItem<E>>;
+export type TrackedItems<E> = Map<E, TrackedItem<E>>;
 
 export enum EventType {
 	flushed = "flushed",

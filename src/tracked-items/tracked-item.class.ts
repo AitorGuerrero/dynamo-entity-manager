@@ -15,9 +15,10 @@ export default abstract class TrackedItem<Entity> {
 
 	public getEntityKey() {
 		const key: DocumentClient.Key = {};
-		key[this.tableConfig.keySchema.hash] = (this.entity as any)[this.tableConfig.keySchema.hash];
+		const marshaled = this.tableConfig.marshal(this.entity);
+		key[this.tableConfig.keySchema.hash] = marshaled[this.tableConfig.keySchema.hash];
 		if (this.tableConfig.keySchema.range) {
-			key[this.tableConfig.keySchema.range] = (this.entity as any)[this.tableConfig.keySchema.range];
+			key[this.tableConfig.keySchema.range] = marshaled[this.tableConfig.keySchema.range];
 		}
 
 		return key;
