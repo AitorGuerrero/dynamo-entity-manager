@@ -2,11 +2,10 @@
     "compilerOptions": {
         "module": "commonjs",
         "target": "esnext",
-        "noImplicitAny": true,
         "sourceMap": true,
-        "declaration": false
-    },
-    "exclude": [
-        "node_modules"
-    ]
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": false,
+        "declaration": true
+    }
 }
