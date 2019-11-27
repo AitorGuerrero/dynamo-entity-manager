@@ -4,10 +4,13 @@
   "description": "Entity manager for Amazon DynamoDB NoSQL database",
   "main": "index.js",
   "scripts": {
+    "test": "mocha ./**/*.test.js",
     "build": "tsc",
-    "test": "nyc --reporter=html mocha ./**/*.test.js",
-    "style": "tslint -p .",
-    "precommit": "npm run build && npm run style && npm run test"
+    "check:style": "tslint -p .",
+    "check:builds": "tsc --noEmit",
+    "preversion": "yarn run build && yarn run coverage",
+    "coverage": "nyc mocha ./**/*.test.js",
+    "style": "tslint -p ."
   },
   "keywords": [
     "aws",
@@ -37,5 +40,10 @@
     "nyc": "^13.3.0",
     "tslint": "^5.12.1",
     "typescript": "^3.3.3"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn && yarn run check:style && yarn run check:builds && yarn coverage"
+    }
   }
 }

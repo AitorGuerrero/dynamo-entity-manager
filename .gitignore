@@ -1,8 +1,11 @@
+# IDE
 .idea
-index.js
-src/**/*.js
-src/**/*.js.map
-**/*.d.ts
+
+# Dependencies
 node_modules
+
+# Generated
+**/*.js
+**/*.js.map
+**/*.d.ts
 .nyc_output
-coverage
