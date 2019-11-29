@@ -9,7 +9,7 @@
     "build": "tsc",
     "check:style": "tslint -p .",
     "check:builds": "tsc --noEmit",
-    "preversion": "yarn run build && yarn run coverage",
+    "preversion": "yarn build && yarn coverage",
     "coverage": "nyc mocha ./**/*.test.js",
     "style": "tslint -p ."
   },
@@ -28,7 +28,7 @@
   "author": "Aitor Guerrero <aitor.guerrero.dev@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "powered-dynamo": "2"
+    "powered-dynamo": "^2"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
@@ -36,15 +36,15 @@
     "@types/node": "12",
     "aws-sdk": "^2.407.0",
     "chai": "^4.2.0",
-    "husky": "3",
+    "husky": "^3",
     "mocha": "^6.0.0",
-    "nyc": "14",
+    "nyc": "^14",
     "tslint": "^5.12.1",
     "typescript": "^3.3.3"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "yarn && yarn run check:style && yarn run check:builds && yarn coverage"
+      "pre-commit": "yarn && yarn check:style && yarn check:builds && yarn coverage"
     }
   }
 }
