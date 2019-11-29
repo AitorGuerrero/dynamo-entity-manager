@@ -1,7 +1,7 @@
 import {DynamoDB} from "aws-sdk";
 import {expect} from "chai";
 import {beforeEach, describe, it} from "mocha";
-import PoweredDynamo from "powered-dynamo/powered-dynamo.class";
+import PoweredDynamo from "powered-dynamo";
 import {DynamoEntityManager, TransactionalFlusher} from "../";
 import {FakeDocumentClient} from "./fake-document-client.class";
 import TransactionItemsLimitReached from "./flushers/error.transaction-items-limit-reached.class";

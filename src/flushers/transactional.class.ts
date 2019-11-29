@@ -1,6 +1,6 @@
 import {DynamoDB} from "aws-sdk";
 import {EventEmitter} from "events";
-import IPoweredDynamo from "powered-dynamo/powered-dynamo.interface";
+import PoweredDynamo from "powered-dynamo";
 import {TrackedItems} from "../entity-manager.class";
 import {ITableConfig} from "../table-config.interface";
 import CreatedTrackedItem from "../tracked-items/created.class";
@@ -101,7 +101,7 @@ export default class TransactionalFlusher implements IFlusher {
 	 * @param options
 	 */
 	constructor(
-		private dc: IPoweredDynamo,
+		private dc: PoweredDynamo,
 		private options: {
 			onItemsLimitFallbackFlusher?: IFlusher,
 		} = {},
