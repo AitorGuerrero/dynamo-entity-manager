@@ -90,9 +90,9 @@
     to-fast-properties "^2.0.0"
 
 "@types/chai@^4.1.7":
-  version "4.2.5"
-  resolved "https://registry.yarnpkg.com/@types/chai/-/chai-4.2.5.tgz#f8da153ebbe30babb0adc9a528b9ad32be3175a2"
-  integrity sha512-YvbLiIc0DbbhiANrfVObdkLEHJksQZVq0Uvfg550SRAKVYaEJy+V70j65BVe2WNp6E3HtKsUczeijHFCjba3og==
+  version "4.2.6"
+  resolved "https://registry.yarnpkg.com/@types/chai/-/chai-4.2.6.tgz#a55625d151d9c7c7a0a95920632131d66480bce9"
+  integrity sha512-HF8faEUA4JurIm+68VaA2KedtZf5LYdXpQEAbIAN79DwWQbO82BNTksZgCH3UMqbZHXex9C6TrBfg7OUInRISQ==
 
 "@types/mocha@^5.2.6":
   version "5.2.7"
@@ -156,9 +156,9 @@ assertion-error@^1.1.0:
   integrity sha512-jgsaNduz+ndvGyFt3uSuWqvy4lCnIJiovtouQN5JZHOKCS2QuhEdbcQHFhVksz2N2U9hXJo8odG7ETyWlEeuDw==
 
 aws-sdk@^2.407.0:
-  version "2.581.0"
-  resolved "https://registry.yarnpkg.com/aws-sdk/-/aws-sdk-2.581.0.tgz#60640dd99a70da41aa171ebf4d791754161953a0"
-  integrity sha512-Z2gulIgdVRdVVSuV27hVdrMdScU35+qkWZI6gKO7V+allk3LIfl/JbV6RGuEbCpzQg6Di/69fkN/jhbpZ+b3ig==
+  version "2.582.0"
+  resolved "https://registry.yarnpkg.com/aws-sdk/-/aws-sdk-2.582.0.tgz#89dfef8f0d7a0d9beaf1dae1068dbc9f95910c46"
+  integrity sha512-imwZfj/QPvsSWZ3xiD3eSicPCF7X51S5q+oGtX6hUQdkglz0ZtP/j7FvX+U9VP1yu29b9vrgHTRI5Xy5VrmxWQ==
   dependencies:
     buffer "^4.9.1"
     events "^1.1.1"
@@ -406,9 +406,9 @@ diff@^4.0.1:
   integrity sha512-s2+XdvhPCOF01LRQBC8hf4vhbVmI2CGS5aZnxLJlT5FtdhPCDFq80q++zK2KlrVorVDdL5BOGZ/VfLrVtYNF+Q==
 
 dynamo-iterator@^1.0.0:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/dynamo-iterator/-/dynamo-iterator-1.0.3.tgz#2eebeec6693d4ee3c02328a1da673b8d2e2c5e8f"
-  integrity sha512-a2SUswIqNpiNdkFEaHbhF2OKxuduohYkTYaeCWhFSyambxNmHoC595ArBNqY6f+QHDcRO02cCa/JoAUwxz4J1A==
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/dynamo-iterator/-/dynamo-iterator-1.1.0.tgz#61f1b7bf2622d54ab0042a51566c08691f0d3cb6"
+  integrity sha512-WOLkpHerX4fhMGtOCVQfgaKzKkmSBVG4l6tUNAKTHIc/d3RZ7CEtH3vbZbM9hjdbhegSQ/WT7jkmftTyOPtiDA==
 
 emoji-regex@^7.0.1:
   version "7.0.3"
@@ -1219,9 +1219,9 @@ please-upgrade-node@^3.2.0:
     semver-compare "^1.0.0"
 
 powered-dynamo@^2:
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/powered-dynamo/-/powered-dynamo-2.0.2.tgz#9c9506e5923f1a68bd94b183d6ed2db51aa2be93"
-  integrity sha512-P2P5Q3aDgW+7+YJu6P8fH8xU5GXdm73Kwt5awzOygW+l5hnNbwEK/w/VL8aoQDU2Nx3imxm15LWhBlI5tdJReg==
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/powered-dynamo/-/powered-dynamo-2.1.1.tgz#be1d9fe576879339f339448f560d3bd1a7874d5f"
+  integrity sha512-MjEq/Pa3nbt4R3ta4gLuObP5O7GDjaNVkqWvpBuM6K4/08fiH3gjAmn+2CmpKRbBdIaTgpd+1gXyn0ycovqXTA==
   dependencies:
     dynamo-iterator "^1.0.0"
 
