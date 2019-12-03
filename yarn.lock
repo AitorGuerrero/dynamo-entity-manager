@@ -1219,9 +1219,9 @@ please-upgrade-node@^3.2.0:
     semver-compare "^1.0.0"
 
 powered-dynamo@^2:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/powered-dynamo/-/powered-dynamo-2.1.1.tgz#be1d9fe576879339f339448f560d3bd1a7874d5f"
-  integrity sha512-MjEq/Pa3nbt4R3ta4gLuObP5O7GDjaNVkqWvpBuM6K4/08fiH3gjAmn+2CmpKRbBdIaTgpd+1gXyn0ycovqXTA==
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/powered-dynamo/-/powered-dynamo-2.1.2.tgz#826e501ed1b8445491ed13425ff7454cf5eb187c"
+  integrity sha512-qCRm7VYfc0udF32JiGckrn7d3EUnSGzaZKp6wKpSkxEsje9rNLxq5/BJfD0hyyAbUFiFGcmVHqC4LaXg87e2RQ==
   dependencies:
     dynamo-iterator "^1.0.0"
 
