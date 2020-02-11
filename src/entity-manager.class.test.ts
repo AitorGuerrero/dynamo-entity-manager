@@ -141,12 +141,12 @@ describe("Having entity manager with transactional flusher", () => {
 		it("should emit error", () => expect(emittedError).to.be.equal(documentClientError));
 		it("should resolve promise to error", () => expect(thrownError).to.be.equal(documentClientError));
 	});
-	describe("and there are more than 10 updates to be done", () => {
+	describe("and there are more than 25 updates to be done", () => {
 		let thrownError: Error;
 		let emittedError: Error;
 
 		beforeEach(async () => {
-			for (let i = 0; i < 11; i++) {
+			for (let i = 0; i < 26; i++) {
 				entityManager.trackNew(
 					tableName,
 					{

@@ -15,7 +15,7 @@ import IFlusher from "./flusher.interface";
 
 import DocumentClient = DynamoDB.DocumentClient;
 
-const maxTransactWriteElems = 10;
+const maxTransactWriteElems = 25;
 
 export default class TransactionalFlusher implements IFlusher {
 
