@@ -43,7 +43,7 @@ export default class DynamoEntityManager {
 	 */
 	constructor(
 		private flusher: IFlusher,
-		tableConfigs: Array<ITableConfig<any>>,
+		tableConfigs: ITableConfig<any>[],
 		eventEmitter?: EventEmitter,
 	) {
 		this.tracked = new Map();

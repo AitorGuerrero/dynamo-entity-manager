@@ -156,7 +156,7 @@ export class FakeDocumentClient {
 		await this.awaitFlush();
 		this.guardShouldFail(cb, () => {
 			const item = this.getByKey(input.TableName, input.Key);
-			const updates: Array<{k: string, v: any}> = /UPDATE/.test(input.UpdateExpression) ?
+			const updates: {k: string, v: any}[] = /UPDATE/.test(input.UpdateExpression) ?
 				/UPDATE ([^,]*)/.exec(input.UpdateExpression)[1]
 					.split(" AND ").map((s) => s.replace(" ", "").split("="))
 					.map((s) => ({k: s[0], v: s[1]})) :

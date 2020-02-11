@@ -30,7 +30,7 @@ export default class ParallelFlusher implements IFlusher {
 	 * @returns {Promise<void>}
 	 */
 	public async flush(tracked: TrackedItems<unknown>) {
-		const processes: Array<Promise<any>> = [];
+		const processes: Promise<any>[] = [];
 		for (const entityConfig of tracked.values()) {
 			if (entityConfig instanceof CreatedTrackedItem) {
 				processes.push(this.createItem(entityConfig));
