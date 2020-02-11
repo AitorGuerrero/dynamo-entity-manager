@@ -36,6 +36,7 @@ export class FakeDocumentClient {
 		}
 	}
 
+	/* istanbul ignore next */
 	public async get(
 		input: DocumentClient.GetItemInput,
 		cb: (err?: Error, result?: DocumentClient.GetItemOutput) => any,
@@ -44,6 +45,7 @@ export class FakeDocumentClient {
 		this.guardShouldFail(cb, () => this.syncGet(input));
 	}
 
+	/* istanbul ignore next */
 	public async set(tableName: TableName, item: DocumentClient.AttributeMap) {
 		await new Promise((rs) => this.put({TableName: tableName, Item: item}, () => rs()));
 	}
@@ -52,6 +54,7 @@ export class FakeDocumentClient {
 		return this.syncGet({TableName: tableName, Key: key}).Item as IEntity;
 	}
 
+	/* istanbul ignore next */
 	public async batchGet(
 		input: DocumentClient.BatchGetItemInput,
 		cb: (err?: Error, result?: DocumentClient.BatchGetItemOutput) => any,
@@ -81,6 +84,7 @@ export class FakeDocumentClient {
 		});
 	}
 
+	/* istanbul ignore next */
 	public async scan(
 		input: DocumentClient.ScanInput,
 		cb: (err?: Error, result?: DocumentClient.ScanOutput) => any,
@@ -115,6 +119,7 @@ export class FakeDocumentClient {
 		});
 	}
 
+	/* istanbul ignore next */
 	public async query(
 		input: DocumentClient.QueryInput,
 		cb: (err?: Error, result?: DocumentClient.QueryOutput) => any,
@@ -149,6 +154,7 @@ export class FakeDocumentClient {
 		});
 	}
 
+	/* istanbul ignore next */
 	public async update(
 		input: DocumentClient.UpdateItemInput,
 		cb: (err?: Error, result?: DocumentClient.UpdateItemOutput) => any,
@@ -205,6 +211,7 @@ export class FakeDocumentClient {
 		});
 	}
 
+	/* istanbul ignore next */
 	public async transactWrite(
 		input: DocumentClient.TransactWriteItemsInput,
 		cb: (err?: Error, result?: DocumentClient.TransactWriteItemsOutput) => any,
@@ -225,6 +232,7 @@ export class FakeDocumentClient {
 		});
 	}
 
+	/* istanbul ignore next */
 	public async delete(
 		input: DocumentClient.DeleteItemInput,
 		cb: (err?: Error, result?: DocumentClient.DeleteItemOutput) => any,
@@ -233,6 +241,7 @@ export class FakeDocumentClient {
 		cb(null, {});
 	}
 
+	/* istanbul ignore next */
 	public flush() {
 		this.resumedEventEmitter.emit("resumed");
 		this.resumed = new Promise((rs) => this.resumedEventEmitter.once("resumed", rs));

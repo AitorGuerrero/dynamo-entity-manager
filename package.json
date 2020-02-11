@@ -5,13 +5,9 @@
   "main": "index.js",
   "scripts": {
     "postpublish": "git push",
-    "test": "mocha ./**/*.test.js",
+    "test": "tsc && mocha ./**/*.test.js",
     "build": "tsc",
-    "check:style": "tslint -p .",
-    "check:builds": "tsc --noEmit",
-    "preversion": "yarn build && yarn coverage",
-    "coverage": "nyc mocha ./**/*.test.js",
-    "style": "tslint -p ."
+    "preversion": "tsc && nyc mocha"
   },
   "keywords": [
     "aws",
@@ -39,12 +35,14 @@
     "husky": "^4.2.1",
     "mocha": "^7.0.1",
     "nyc": "^15.0.0",
+    "source-map-support": "^0.5.16",
     "tslint": "^6.0.0",
+    "ts-node": "^8.6.2",
     "typescript": "^3.3.3"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "yarn && yarn check:style && yarn check:builds && yarn coverage"
+      "pre-commit": "tsc && tslint -p . && nyc mocha"
     }
   }
 }

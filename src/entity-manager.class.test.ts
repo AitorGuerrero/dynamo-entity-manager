@@ -95,10 +95,7 @@ describe("Having entity manager with transactional flusher", () => {
 				rangeAttr,
 				updatableValue: originalUpdatableValue,
 			};
-			await new Promise((rs, rj) => documentClient.put(
-				{TableName: tableName, Item: entity},
-				(err) => err ? rj(err) : rs(),
-			));
+			await new Promise((rs) => documentClient.put({TableName: tableName, Item: entity}, rs));
 			entityManager.track(tableName, entity);
 		});
 		describe("when updating the entity", () => {
@@ -263,10 +260,7 @@ describe("Having entity manager with parallel flusher", () => {
 				rangeAttr,
 				updatableValue: originalUpdatableValue,
 			};
-			await new Promise((rs, rj) => documentClient.put(
-				{TableName: tableName, Item: entity},
-				(err) => err ? rj(err) : rs(),
-			));
+			await new Promise((rs) => documentClient.put({TableName: tableName, Item: entity}, rs));
 			entityManager.track(tableName, entity);
 		});
 		describe("when updating the entity", () => {
