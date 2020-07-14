@@ -1,12 +1,6 @@
 {
-  "extends": "tslint:recommended",
-  "rules": {
-    "forin": false,
-    "triple-equals": false,
-    "indent": [
-      true,
-      "tabs"
-    ],
-    "no-unused-expression": false
-  }
+	"extends": "tslint:recommended",
+	"rules": {
+		"indent": false
+	}
 }

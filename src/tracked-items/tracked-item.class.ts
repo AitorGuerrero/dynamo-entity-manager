@@ -1,10 +1,9 @@
-import {DynamoDB} from "aws-sdk";
-import {ITableConfig} from "../table-config.interface";
+import { DynamoDB } from 'aws-sdk';
+import { ITableConfig } from '../table-config.interface';
 
 import DocumentClient = DynamoDB.DocumentClient;
 
 export default abstract class TrackedItem<Entity> {
-
 	protected initialStatus?: string;
 
 	protected constructor(

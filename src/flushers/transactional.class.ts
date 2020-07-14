@@ -1,24 +1,23 @@
-import {DynamoDB} from "aws-sdk";
-import {EventEmitter} from "events";
-import PoweredDynamo from "powered-dynamo";
-import {TrackedItems} from "../entity-manager.class";
-import {ITableConfig} from "../table-config.interface";
-import CreatedTrackedItem from "../tracked-items/created.class";
-import DeletedTrackedItem from "../tracked-items/deleted.class";
-import TrackedItem from "../tracked-items/tracked-item.class";
-import UpdatedTrackedItem from "../tracked-items/updated.class";
-import addVersionConditionExpression from "./add-version-condition-expression.function";
-import addVersionToCreateItem from "./add-version-to-create-item.function";
-import addVersionToUpdateItem from "./add-version-to-update-item.function";
-import TransactionItemsLimitReached from "./error.transaction-items-limit-reached.class";
-import IFlusher from "./flusher.interface";
+import { DynamoDB } from 'aws-sdk';
+import { EventEmitter } from 'events';
+import PoweredDynamo from 'powered-dynamo';
+import { TrackedItems } from '../entity-manager.class';
+import { ITableConfig } from '../table-config.interface';
+import CreatedTrackedItem from '../tracked-items/created.class';
+import DeletedTrackedItem from '../tracked-items/deleted.class';
+import TrackedItem from '../tracked-items/tracked-item.class';
+import UpdatedTrackedItem from '../tracked-items/updated.class';
+import addVersionConditionExpression from './add-version-condition-expression.function';
+import addVersionToCreateItem from './add-version-to-create-item.function';
+import addVersionToUpdateItem from './add-version-to-update-item.function';
+import TransactionItemsLimitReached from './error.transaction-items-limit-reached.class';
+import IFlusher from './flusher.interface';
 
 import DocumentClient = DynamoDB.DocumentClient;
 
 const maxTransactWriteElems = 25;
 
 export default class TransactionalFlusher implements IFlusher {
-
 	private static flushEntity<E>(trackedItem: TrackedItem<E>): DynamoDB.TransactWriteItem {
 		if (trackedItem instanceof UpdatedTrackedItem) {
 			return TransactionalFlusher.updateItemTransactional(trackedItem);
@@ -31,7 +30,9 @@ export default class TransactionalFlusher implements IFlusher {
 		}
 	}
 
-	private static createItemTransactional<E>(trackedEntity: CreatedTrackedItem<E>): DynamoDB.TransactWriteItem {
+	private static createItemTransactional<E>(
+		trackedEntity: CreatedTrackedItem<E>,
+	): DynamoDB.TransactWriteItem {
 		const marshaledEntity = trackedEntity.tableConfig.marshal(trackedEntity.entity);
 		return {
 			Put: Object.assign(
@@ -46,14 +47,14 @@ export default class TransactionalFlusher implements IFlusher {
 
 	private static buildConditionExpression(entity: any, tableConf: ITableConfig<unknown>) {
 		const result: any = {
-			ConditionExpression: "#keyHash<>:keyHash",
-			ExpressionAttributeNames: {"#keyHash": tableConf.keySchema.hash},
-			ExpressionAttributeValues: {":keyHash": entity[tableConf.keySchema.hash]},
+			ConditionExpression: '#keyHash<>:keyHash',
+			ExpressionAttributeNames: { '#keyHash': tableConf.keySchema.hash },
+			ExpressionAttributeValues: { ':keyHash': entity[tableConf.keySchema.hash] },
 		};
 		if (tableConf.keySchema.range !== undefined) {
-			result.ConditionExpression = result.ConditionExpression + " and #keyRange<>:keyRange";
-			result.ExpressionAttributeNames["#keyRange"] = tableConf.keySchema.range;
-			result.ExpressionAttributeValues[":keyRange"] = entity[tableConf.keySchema.range];
+			result.ConditionExpression = result.ConditionExpression + ' and #keyRange<>:keyRange';
+			result.ExpressionAttributeNames['#keyRange'] = tableConf.keySchema.range;
+			result.ExpressionAttributeValues[':keyRange'] = entity[tableConf.keySchema.range];
 		}
 
 		return result;
@@ -68,28 +69,21 @@ export default class TransactionalFlusher implements IFlusher {
 		}
 
 		return {
-			Put: addVersionConditionExpression(
-				trackedEntity,
-				{
-					Item: addVersionToUpdateItem(
-						tableConfig.marshal(trackedEntity.entity),
-						trackedEntity,
-					),
-					TableName: tableConfig.tableName,
-				},
-			) as DocumentClient.Put,
+			Put: addVersionConditionExpression(trackedEntity, {
+				Item: addVersionToUpdateItem(tableConfig.marshal(trackedEntity.entity), trackedEntity),
+				TableName: tableConfig.tableName,
+			}) as DocumentClient.Put,
 		};
 	}
 
-	private static deleteItemTransactional<E>(trackedEntity: DeletedTrackedItem<E>): DynamoDB.TransactWriteItem {
+	private static deleteItemTransactional<E>(
+		trackedEntity: DeletedTrackedItem<E>,
+	): DynamoDB.TransactWriteItem {
 		return {
-			Delete: addVersionConditionExpression(
-				trackedEntity,
-				{
-					Key: trackedEntity.getEntityKey(),
-					TableName: trackedEntity.tableConfig.tableName,
-				},
-			)  as DocumentClient.Delete,
+			Delete: addVersionConditionExpression(trackedEntity, {
+				Key: trackedEntity.getEntityKey(),
+				TableName: trackedEntity.tableConfig.tableName,
+			}) as DocumentClient.Delete,
 		};
 	}
 
@@ -103,10 +97,9 @@ export default class TransactionalFlusher implements IFlusher {
 	constructor(
 		private dc: PoweredDynamo,
 		private options: {
-			onItemsLimitFallbackFlusher?: IFlusher,
+			onItemsLimitFallbackFlusher?: IFlusher;
 		} = {},
-	) {
-	}
+	) {}
 
 	/**
 	 * Flushes all the changes made to loaded entities.

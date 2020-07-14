@@ -1,48 +1,50 @@
 {
-  "name": "dynamo-entity-manager",
-  "version": "2.2.0",
-  "description": "Entity manager for Amazon DynamoDB NoSQL database",
-  "main": "index.js",
-  "scripts": {
-    "postpublish": "git push",
-    "test": "tsc && mocha ./**/*.test.js",
-    "build": "tsc",
-    "preversion": "tsc && nyc mocha"
-  },
-  "keywords": [
-    "aws",
-    "amazon",
-    "dynamo",
-    "dynamodb",
-    "entity",
-    "manager"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AitorGuerrero/dynamo-entity-manager.git"
-  },
-  "author": "Aitor Guerrero <aitor.guerrero.dev@gmail.com>",
-  "license": "ISC",
-  "dependencies": {
-    "powered-dynamo": "^2.1.3"
-  },
-  "devDependencies": {
-    "@types/chai": "^4.1.7",
-    "@types/mocha": "^7.0.1",
-    "@types/node": "^13.7.0",
-    "aws-sdk": "^2.407.0",
-    "chai": "^4.2.0",
-    "husky": "^4.2.1",
-    "mocha": "^7.0.1",
-    "nyc": "^15.0.0",
-    "source-map-support": "^0.5.16",
-    "ts-node": "^8.6.2",
-    "tslint": "^6.0.0",
-    "typescript": "^3.3.3"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "tsc && tslint -p . && nyc mocha"
-    }
-  }
+	"name": "dynamo-entity-manager",
+	"version": "2.2.0",
+	"description": "Entity manager for Amazon DynamoDB NoSQL database",
+	"main": "index.js",
+	"scripts": {
+		"postpublish": "git push",
+		"test": "tsc && mocha ./**/*.test.js",
+		"build": "tsc",
+		"fixStyle": "prettier -c . --write && tslint -p . --fix",
+		"preversion": "tsc && nyc mocha"
+	},
+	"keywords": [
+		"aws",
+		"amazon",
+		"dynamo",
+		"dynamodb",
+		"entity",
+		"manager"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/AitorGuerrero/dynamo-entity-manager.git"
+	},
+	"author": "Aitor Guerrero <aitor.guerrero.dev@gmail.com>",
+	"license": "ISC",
+	"dependencies": {
+		"powered-dynamo": "^2.1.3"
+	},
+	"devDependencies": {
+		"@types/chai": "^4.1.7",
+		"@types/mocha": "^7.0.1",
+		"@types/node": "^13.7.0",
+		"aws-sdk": "^2.407.0",
+		"chai": "^4.2.0",
+		"husky": "^4.2.1",
+		"mocha": "^7.0.1",
+		"nyc": "^15.0.0",
+		"prettier": "^2.0.5",
+		"source-map-support": "^0.5.16",
+		"ts-node": "^8.6.2",
+		"tslint": "^6.0.0",
+		"typescript": "^3.3.3"
+	},
+	"husky": {
+		"hooks": {
+			"pre-commit": "tsc && prettier -c . && tslint -p . && nyc mocha"
+		}
+	}
 }

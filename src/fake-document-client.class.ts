@@ -1,15 +1,16 @@
-import {DynamoDB} from "aws-sdk";
-import {EventEmitter} from "events";
+import { DynamoDB } from 'aws-sdk';
+import { EventEmitter } from 'events';
 
 import DocumentClient = DynamoDB.DocumentClient;
 
 export type TableName = string;
 
 export class FakeDocumentClient {
-
 	public stepMode: boolean;
-	public readonly collections: {[tableName: string]: {[hashKey: string]: {[rangeKey: string]: string}}};
-	private readonly keySchemas: {[tableName: string]: {hashKey: string, rangeKey: string}};
+	public readonly collections: {
+		[tableName: string]: { [hashKey: string]: { [rangeKey: string]: string } };
+	};
+	private readonly keySchemas: { [tableName: string]: { hashKey: string; rangeKey: string } };
 	private resumed: Promise<any>;
 	private resumedEventEmitter: EventEmitter;
 	private shouldFail: boolean;
@@ -17,9 +18,7 @@ export class FakeDocumentClient {
 	private hashKey: string;
 	private rangeKey: string;
 
-	constructor(
-		keySchemas: {[tableName: string]: DocumentClient.KeySchema},
-	) {
+	constructor(keySchemas: { [tableName: string]: DocumentClient.KeySchema }) {
 		this.resumed = Promise.resolve();
 		this.stepMode = false;
 		this.resumedEventEmitter = new EventEmitter();
@@ -28,10 +27,11 @@ export class FakeDocumentClient {
 		this.keySchemas = {};
 		for (const tableName of Object.keys(keySchemas)) {
 			this.keySchemas[tableName] = {
-				hashKey: keySchemas[tableName].find((ks) => ks.KeyType === "HASH").AttributeName,
-				rangeKey: keySchemas[tableName].find((ks) => ks.KeyType === "RANGE") === undefined ?
-					undefined :
-					keySchemas[tableName].find((ks) => ks.KeyType === "RANGE").AttributeName,
+				hashKey: keySchemas[tableName].find((ks) => ks.KeyType === 'HASH').AttributeName,
+				rangeKey:
+					keySchemas[tableName].find((ks) => ks.KeyType === 'RANGE') === undefined
+						? undefined
+						: keySchemas[tableName].find((ks) => ks.KeyType === 'RANGE').AttributeName,
 			};
 		}
 	}
@@ -47,11 +47,11 @@ export class FakeDocumentClient {
 
 	/* istanbul ignore next */
 	public async set(tableName: TableName, item: DocumentClient.AttributeMap) {
-		await new Promise((rs) => this.put({TableName: tableName, Item: item}, () => rs()));
+		await new Promise((rs) => this.put({ TableName: tableName, Item: item }, () => rs()));
 	}
 
 	public getByKey<IEntity>(tableName: TableName, key: DocumentClient.Key): IEntity {
-		return this.syncGet({TableName: tableName, Key: key}).Item as IEntity;
+		return this.syncGet({ TableName: tableName, Key: key }).Item as IEntity;
 	}
 
 	/* istanbul ignore next */
@@ -61,24 +61,25 @@ export class FakeDocumentClient {
 	) {
 		await this.awaitFlush();
 		this.guardShouldFail(cb, () => {
-			const response: DocumentClient.BatchGetItemOutput = {Responses: {}};
-			for (const tableName in input.RequestItems) {
-				response.Responses[tableName] = [];
-				for (const request of input.RequestItems[tableName].Keys) {
-					const hashKey = request[this.keySchemas[tableName].hashKey];
-					const rangeKey = request[this.keySchemas[tableName].rangeKey];
-					this.ensureHashKey(tableName, hashKey);
-					let item: any;
-					if (this.keySchemas[tableName].rangeKey === undefined) {
-						item = this.collections[tableName][hashKey];
-					} else {
-						item = this.collections[tableName][hashKey][rangeKey];
-					}
-					if (item !== undefined) {
-						response.Responses[tableName].push(item);
+			const response: DocumentClient.BatchGetItemOutput = { Responses: {} };
+			for (const tableName in input.RequestItems)
+				if (input.RequestItems.hasOwnProperty(tableName)) {
+					response.Responses[tableName] = [];
+					for (const request of input.RequestItems[tableName].Keys) {
+						const hashKey = request[this.keySchemas[tableName].hashKey];
+						const rangeKey = request[this.keySchemas[tableName].rangeKey];
+						this.ensureHashKey(tableName, hashKey);
+						let item: any;
+						if (this.keySchemas[tableName].rangeKey === undefined) {
+							item = this.collections[tableName][hashKey];
+						} else {
+							item = this.collections[tableName][hashKey][rangeKey];
+						}
+						if (item !== undefined) {
+							response.Responses[tableName].push(item);
+						}
 					}
 				}
-			}
 
 			return response;
 		});
@@ -91,7 +92,7 @@ export class FakeDocumentClient {
 	) {
 		await this.awaitFlush();
 		this.guardShouldFail(cb, () => {
-			const response: DocumentClient.ScanOutput = {Items: []};
+			const response: DocumentClient.ScanOutput = { Items: [] };
 			const startKey = this.getStartKey(input.TableName, input.ExclusiveStartKey);
 			const hashKeys = Object.keys(this.collections[input.TableName]);
 			let hashKey = startKey.hash;
@@ -126,7 +127,7 @@ export class FakeDocumentClient {
 	) {
 		await this.awaitFlush();
 		this.guardShouldFail(cb, () => {
-			const response: DocumentClient.ScanOutput = {Items: []};
+			const response: DocumentClient.ScanOutput = { Items: [] };
 			const startKey = this.getStartKey(input.TableName, input.ExclusiveStartKey);
 			const hashKeys = Object.keys(this.collections[input.TableName]);
 			let hashKey = startKey.hash;
@@ -162,21 +163,25 @@ export class FakeDocumentClient {
 		await this.awaitFlush();
 		this.guardShouldFail(cb, () => {
 			const item = this.getByKey(input.TableName, input.Key);
-			const updates: {k: string, v: any}[] = /UPDATE/.test(input.UpdateExpression) ?
-				/UPDATE ([^,]*)/.exec(input.UpdateExpression)[1]
-					.split(" AND ").map((s) => s.replace(" ", "").split("="))
-					.map((s) => ({k: s[0], v: s[1]})) :
-				[];
-			const deletes: string[] = /DELETE/.test(input.UpdateExpression) ?
-				/DELETE ([^,]*)/.exec(input.UpdateExpression)[1]
-					.split(" AND ").map((s) => s.replace(" ", "")) :
-				[];
+			const updates: { k: string; v: any }[] = /UPDATE/.test(input.UpdateExpression)
+				? /UPDATE ([^,]*)/
+						.exec(input.UpdateExpression)[1]
+						.split(' AND ')
+						.map((s) => s.replace(' ', '').split('='))
+						.map((s) => ({ k: s[0], v: s[1] }))
+				: [];
+			const deletes: string[] = /DELETE/.test(input.UpdateExpression)
+				? /DELETE ([^,]*)/
+						.exec(input.UpdateExpression)[1]
+						.split(' AND ')
+						.map((s) => s.replace(' ', ''))
+				: [];
 
 			for (const update of updates) {
 				let toUpdate: any = item;
-				for (const k of update.k.split(".")) {
+				for (const k of update.k.split('.')) {
 					const realName = input.ExpressionAttributeNames[k];
-					if (typeof toUpdate[realName] !== "object") {
+					if (typeof toUpdate[realName] !== 'object') {
 						toUpdate[realName] = input.ExpressionAttributeValues[update.v];
 						continue;
 					}
@@ -185,16 +190,16 @@ export class FakeDocumentClient {
 			}
 			for (const deleteField of deletes) {
 				let toDelete: any = item;
-				for (const k of deleteField.split(".")) {
+				for (const k of deleteField.split('.')) {
 					const realName = input.ExpressionAttributeNames[k];
-					if (typeof toDelete[realName] !== "object") {
+					if (typeof toDelete[realName] !== 'object') {
 						toDelete[realName] = undefined;
 						continue;
 					}
 					toDelete = toDelete[realName];
 				}
 			}
-			this.putItem({TableName: input.TableName, Item: item});
+			this.putItem({ TableName: input.TableName, Item: item });
 
 			cb(null, {});
 		});
@@ -220,7 +225,7 @@ export class FakeDocumentClient {
 		this.guardShouldFail(cb, () => {
 			for (const item of input.TransactItems) {
 				if (item.Update) {
-					throw new Error("fake transact update not implemented");
+					throw new Error('fake transact update not implemented');
 				} else if (item.Put) {
 					this.putItem(item.Put);
 				} else if (item.Delete) {
@@ -243,8 +248,8 @@ export class FakeDocumentClient {
 
 	/* istanbul ignore next */
 	public flush() {
-		this.resumedEventEmitter.emit("resumed");
-		this.resumed = new Promise((rs) => this.resumedEventEmitter.once("resumed", rs));
+		this.resumedEventEmitter.emit('resumed');
+		this.resumed = new Promise((rs) => this.resumedEventEmitter.once('resumed', rs));
 	}
 
 	public failOnCall(error?: Error) {
@@ -258,11 +263,11 @@ export class FakeDocumentClient {
 		if (this.collections[input.TableName] === undefined) {
 			return {};
 		} else if (this.keySchemas[input.TableName].rangeKey === undefined) {
-			return {Item: JSON.parse(this.collections[input.TableName][hashKey] as any)};
+			return { Item: JSON.parse(this.collections[input.TableName][hashKey] as any) };
 		} else if (this.collections[input.TableName][hashKey][rangeKey] === undefined) {
 			return {};
 		} else {
-			return {Item: JSON.parse(this.collections[input.TableName][hashKey][rangeKey])};
+			return { Item: JSON.parse(this.collections[input.TableName][hashKey][rangeKey]) };
 		}
 	}
 
@@ -294,19 +299,22 @@ export class FakeDocumentClient {
 		if (exclusiveStartKey === undefined) {
 			hash = Object.keys(this.collections[tableName])[0];
 			range = Object.keys(this.collections[tableName][hash])[0];
-			return {hash, range};
+			return { hash, range };
 		}
 
 		hash = exclusiveStartKey[this.keySchemas[tableName].hashKey];
-		const rangeKeys = Object.keys(this.collections[tableName][exclusiveStartKey[this.keySchemas[tableName].hashKey]]);
-		range = rangeKeys[rangeKeys.indexOf(exclusiveStartKey[this.keySchemas[tableName].rangeKey]) + 1];
+		const rangeKeys = Object.keys(
+			this.collections[tableName][exclusiveStartKey[this.keySchemas[tableName].hashKey]],
+		);
+		range =
+			rangeKeys[rangeKeys.indexOf(exclusiveStartKey[this.keySchemas[tableName].rangeKey]) + 1];
 		if (range === undefined) {
 			const hashKeys = Object.keys(this.collections[tableName]);
 			hash = hashKeys[hashKeys.indexOf(hash) + 1];
 			range = Object.keys(this.collections[tableName][hash])[0];
 		}
 
-		return {hash, range};
+		return { hash, range };
 	}
 
 	private async awaitFlush() {
@@ -319,9 +327,9 @@ export class FakeDocumentClient {
 		if (this.shouldFail === false) {
 			cb(null, onSuccess());
 
-			return ;
+			return;
 		}
-		cb(this.error !== undefined ? this.error : new Error("Repository error"));
+		cb(this.error !== undefined ? this.error : new Error('Repository error'));
 	}
 
 	private ensureHashKey(tableName: string, hashKey: string) {

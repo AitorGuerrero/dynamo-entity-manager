@@ -1,29 +1,35 @@
-import {DynamoDB} from "aws-sdk";
-import {EventEmitter} from "events";
-import IFlusher from "./flushers/flusher.interface";
-import {ITableConfig} from "./table-config.interface";
-import CreatedTrackedItem from "./tracked-items/created.class";
-import DeletedTrackedItem from "./tracked-items/deleted.class";
-import TrackedItem from "./tracked-items/tracked-item.class";
-import UpdatedTrackedItem from "./tracked-items/updated.class";
+import { DynamoDB } from 'aws-sdk';
+import { EventEmitter } from 'events';
+import IFlusher from './flushers/flusher.interface';
+import { ITableConfig } from './table-config.interface';
+import CreatedTrackedItem from './tracked-items/created.class';
+import DeletedTrackedItem from './tracked-items/deleted.class';
+import TrackedItem from './tracked-items/tracked-item.class';
+import UpdatedTrackedItem from './tracked-items/updated.class';
 
 import DocumentClient = DynamoDB.DocumentClient;
 
 export type TrackedItems<E> = Map<E, TrackedItem<E>>;
 
 export enum EventType {
-	flushed = "flushed",
-	error = "error",
+	flushed = 'flushed',
+	error = 'error',
 }
 
 /**
  * @TODO updating only modified attributes instead of all the item.
  */
 export default class DynamoEntityManager {
-
-	private static isSameKey(k1: DocumentClient.Key, k2: DocumentClient.Key, config: ITableConfig<unknown>) {
-		return k1[config.keySchema.hash] === k2[config.keySchema.hash] &&
-			(config.keySchema.range === undefined || k1[config.keySchema.range] === k2[config.keySchema.range]);
+	private static isSameKey(
+		k1: DocumentClient.Key,
+		k2: DocumentClient.Key,
+		config: ITableConfig<unknown>,
+	) {
+		return (
+			k1[config.keySchema.hash] === k2[config.keySchema.hash] &&
+			(config.keySchema.range === undefined ||
+				k1[config.keySchema.range] === k2[config.keySchema.range])
+		);
 	}
 
 	/**
@@ -34,7 +40,7 @@ export default class DynamoEntityManager {
 
 	protected tracked: TrackedItems<unknown> = new Map();
 	protected flushing: false | Promise<void> = false;
-	private readonly tableConfigs: {[tableName: string]: ITableConfig<unknown>} = {};
+	private readonly tableConfigs: { [tableName: string]: ITableConfig<unknown> } = {};
 
 	/**
 	 * @param {Array<ITableConfig<any>>} tableConfigs
@@ -70,7 +76,7 @@ export default class DynamoEntityManager {
 					rs();
 				} catch (err) {
 					this.flushing = false;
-					this.eventEmitter.emit("error", err);
+					this.eventEmitter.emit('error', err);
 
 					rj(err);
 				}
@@ -91,11 +97,13 @@ export default class DynamoEntityManager {
 			return;
 		}
 		const tableConfig = this.tableConfigs[tableName];
-		this.addTrackedItem(new UpdatedTrackedItem(
-			entity,
-			tableConfig,
-			tableConfig.versionKey ? version || 0 : undefined,
-		));
+		this.addTrackedItem(
+			new UpdatedTrackedItem(
+				entity,
+				tableConfig,
+				tableConfig.versionKey ? version || 0 : undefined,
+			),
+		);
 	}
 
 	/**
@@ -120,16 +128,10 @@ export default class DynamoEntityManager {
 		if (entity === undefined) {
 			return;
 		}
-		if (
-			this.tracked.has(entity)
-			&& this.tracked.get(entity) instanceof CreatedTrackedItem
-		) {
+		if (this.tracked.has(entity) && this.tracked.get(entity) instanceof CreatedTrackedItem) {
 			this.tracked.delete(entity);
 		} else {
-			this.tracked.set(entity, new DeletedTrackedItem(
-				entity,
-				this.tableConfigs[tableName],
-			));
+			this.tracked.set(entity, new DeletedTrackedItem(entity, this.tableConfigs[tableName]));
 		}
 	}
 
@@ -160,9 +162,12 @@ export default class DynamoEntityManager {
 	}
 
 	private addTableConfig(config: ITableConfig<any>) {
-		this.tableConfigs[config.tableName] = Object.assign({
-			marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
-		}, config);
+		this.tableConfigs[config.tableName] = Object.assign(
+			{
+				marshal: (entity: any) => JSON.parse(JSON.stringify(entity)) as DocumentClient.AttributeMap,
+			},
+			config,
+		);
 	}
 
 	private addTrackedItem(trackedItem: TrackedItem<unknown>) {
@@ -170,7 +175,7 @@ export default class DynamoEntityManager {
 			return;
 		}
 		if (this.keyIsTracked(trackedItem.tableConfig.tableName, trackedItem.getEntityKey())) {
-			throw new Error("Key is in use");
+			throw new Error('Key is in use');
 		}
 		this.tracked.set(trackedItem.entity, trackedItem);
 	}

@@ -1,5 +1,5 @@
-import {ITableConfig} from "../table-config.interface";
-import TrackedItem from "./tracked-item.class";
+import { ITableConfig } from '../table-config.interface';
+import TrackedItem from './tracked-item.class';
 
 export default class UpdatedTrackedItem<E> extends TrackedItem<E> {
 	constructor(
@@ -7,11 +7,7 @@ export default class UpdatedTrackedItem<E> extends TrackedItem<E> {
 		public readonly tableConfig: ITableConfig<E>,
 		public readonly version?: number,
 	) {
-		super(
-			entity,
-			tableConfig,
-			version,
-		);
+		super(entity, tableConfig, version);
 		this.setState();
 	}
 

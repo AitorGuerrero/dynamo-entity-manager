@@ -1,13 +1,13 @@
 {
-    "compilerOptions": {
-        "module": "commonjs",
-        "target": "esnext",
-        "sourceMap": true,
-        "noImplicitAny": true,
-        "noImplicitThis": true,
-        "noImplicitReturns": false,
-        "declaration": true,
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true
-    }
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "esnext",
+		"sourceMap": true,
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"noImplicitReturns": false,
+		"declaration": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true
+	}
 }

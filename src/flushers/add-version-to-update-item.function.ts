@@ -1,5 +1,5 @@
-import {DynamoDB} from "aws-sdk";
-import TrackedItem from "../tracked-items/tracked-item.class";
+import { DynamoDB } from 'aws-sdk';
+import TrackedItem from '../tracked-items/tracked-item.class';
 
 export default function addVersionToUpdateItem<Entity>(
 	item: any,
