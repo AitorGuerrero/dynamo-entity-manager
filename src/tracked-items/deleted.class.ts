@@ -8,6 +8,6 @@ export default class DeletedTrackedItem<E> extends TrackedItem<E> {
 		public readonly version?: number,
 	) {
 		super(entity, tableConfig, version);
-		this.initialStatus = JSON.stringify(entity);
+		this.initialStatus = JSON.stringify(this.tableConfig.marshal(this.entity));
 	}
 }

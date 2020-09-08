@@ -12,10 +12,10 @@ export default class UpdatedTrackedItem<E> extends TrackedItem<E> {
 	}
 
 	public setState() {
-		this.initialStatus = JSON.stringify(this.entity);
+		this.initialStatus = JSON.stringify(this.tableConfig.marshal(this.entity));
 	}
 
 	public get hasChanged() {
-		return JSON.stringify(this.entity) !== this.initialStatus;
+		return JSON.stringify(this.tableConfig.marshal(this.entity)) !== this.initialStatus;
 	}
 }
