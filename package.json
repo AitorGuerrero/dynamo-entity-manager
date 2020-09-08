@@ -5,10 +5,15 @@
 	"main": "index.js",
 	"scripts": {
 		"postpublish": "git push",
-		"test": "tsc && mocha ./**/*.test.js",
+		"pretest": "yarn build",
+		"test": "mocha",
+		"pretest:coverage": "yarn pretest",
+		"test:coverage": "nyc mocha",
+		"prebuild": "yarn",
 		"build": "tsc",
+		"prefixStyle": "yarn",
 		"fixStyle": "prettier -c . --write && tslint -p . --fix",
-		"preversion": "tsc && nyc mocha"
+		"preversion": "yarn test:coverage"
 	},
 	"keywords": [
 		"aws",
@@ -44,7 +49,7 @@
 	},
 	"husky": {
 		"hooks": {
-			"pre-commit": "tsc && prettier -c . && tslint -p . && nyc mocha"
+			"pre-commit": "yarn && tsc && prettier -c . && tslint -p . && nyc mocha"
 		}
 	}
 }
