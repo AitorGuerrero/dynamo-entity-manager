@@ -2,7 +2,6 @@
 import { DynamoDB } from 'aws-sdk';
 import { expect } from 'chai';
 import { beforeEach, describe, it } from 'mocha';
-import PoweredDynamo from 'powered-dynamo';
 import { DynamoEntityManager, TransactionalFlusher } from '../';
 import { FakeDocumentClient } from './fake-document-client.class';
 import TransactionItemsLimitReached from './flushers/error.transaction-items-limit-reached.class';
@@ -37,8 +36,10 @@ describe('Having entity manager with transactional flusher', () => {
 
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({ [tableName]: keySchema });
-		const poweredDynamo = new PoweredDynamo((documentClient as any) as DynamoDB.DocumentClient);
-		entityManager = new DynamoEntityManager(new TransactionalFlusher(poweredDynamo), [tableConfig]);
+		entityManager = new DynamoEntityManager(
+			new TransactionalFlusher((documentClient as unknown) as DynamoDB.DocumentClient),
+			[tableConfig],
+		);
 	});
 	describe('and creating a entity', () => {
 		let entity: Entity;
@@ -97,7 +98,7 @@ describe('Having entity manager with transactional flusher', () => {
 				rangeAttr,
 				updatableValue: originalUpdatableValue,
 			};
-			await new Promise((rs) => documentClient.put({ TableName: tableName, Item: entity }, rs));
+			await documentClient.put({ TableName: tableName, Item: entity }).promise();
 			entityManager.track(tableName, entity);
 		});
 		describe('when updating the entity', () => {
@@ -204,8 +205,10 @@ describe('Having entity manager with parallel flusher', () => {
 
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({ [tableName]: keySchema });
-		const poweredDynamo = new PoweredDynamo((documentClient as any) as DynamoDB.DocumentClient);
-		entityManager = new DynamoEntityManager(new ParallelFlusher(poweredDynamo), [tableConfig]);
+		entityManager = new DynamoEntityManager(
+			new ParallelFlusher((documentClient as unknown) as DynamoDB.DocumentClient),
+			[tableConfig],
+		);
 	});
 	describe('and creating a entity', () => {
 		let entity: IEntity;
@@ -264,7 +267,7 @@ describe('Having entity manager with parallel flusher', () => {
 				rangeAttr,
 				updatableValue: originalUpdatableValue,
 			};
-			await new Promise((rs) => documentClient.put({ TableName: tableName, Item: entity }, rs));
+			await documentClient.put({ TableName: tableName, Item: entity }).promise();
 			entityManager.track(tableName, entity);
 		});
 		describe('when updating the entity', () => {
