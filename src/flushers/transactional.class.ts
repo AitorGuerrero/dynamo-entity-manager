@@ -1,4 +1,6 @@
 import { DynamoDB } from 'aws-sdk';
+import { EventEmitter } from 'events';
+import PoweredDynamo from 'powered-dynamo';
 import { TrackedItems } from '../entity-manager.class';
 import { ITableConfig } from '../table-config.interface';
 import CreatedTrackedItem from '../tracked-items/created.class';
@@ -88,11 +90,12 @@ export default class TransactionalFlusher implements IFlusher {
 	private flushing: false | Promise<void> = false;
 
 	/**
-	 * @param dc
+	 * @param {DocumentClient} dc
+	 * @param {module:events.internal.EventEmitter} eventEmitter
 	 * @param options
 	 */
 	constructor(
-		private dc: DynamoDB.DocumentClient,
+		private dc: PoweredDynamo,
 		private options: {
 			onItemsLimitFallbackFlusher?: IFlusher;
 		} = {},
@@ -145,6 +148,6 @@ export default class TransactionalFlusher implements IFlusher {
 	}
 
 	private asyncTransaction(request: DocumentClient.TransactWriteItemsInput) {
-		return this.dc.transactWrite(request).promise();
+		return this.dc.transactWrite(request);
 	}
 }
