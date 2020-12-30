@@ -47,7 +47,7 @@ export class FakeDocumentClient {
 
 	/* istanbul ignore next */
 	public async set(tableName: TableName, item: DocumentClient.AttributeMap) {
-		await new Promise((rs) => this.put({ TableName: tableName, Item: item }, () => rs()));
+		await new Promise<void>((rs) => this.put({ TableName: tableName, Item: item }, () => rs()));
 	}
 
 	public getByKey<IEntity>(tableName: TableName, key: DocumentClient.Key): IEntity {
