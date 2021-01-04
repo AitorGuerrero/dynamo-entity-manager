@@ -37,17 +37,19 @@ export class FakeDocumentClient {
 	}
 
 	/* istanbul ignore next */
-	public async get(
-		input: DocumentClient.GetItemInput,
-		cb: (err?: Error, result?: DocumentClient.GetItemOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => this.syncGet(input));
+	public get(input: DocumentClient.GetItemInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				return this.syncGet(input);
+			},
+		};
 	}
 
 	/* istanbul ignore next */
 	public async set(tableName: TableName, item: DocumentClient.AttributeMap) {
-		await new Promise<void>((rs) => this.put({ TableName: tableName, Item: item }, () => rs()));
+		await this.put({ TableName: tableName, Item: item }).promise();
 	}
 
 	public getByKey<IEntity>(tableName: TableName, key: DocumentClient.Key): IEntity {
@@ -55,195 +57,196 @@ export class FakeDocumentClient {
 	}
 
 	/* istanbul ignore next */
-	public async batchGet(
-		input: DocumentClient.BatchGetItemInput,
-		cb: (err?: Error, result?: DocumentClient.BatchGetItemOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => {
-			const response: DocumentClient.BatchGetItemOutput = { Responses: {} };
-			for (const tableName in input.RequestItems)
-				if (input.RequestItems.hasOwnProperty(tableName)) {
-					response.Responses[tableName] = [];
-					for (const request of input.RequestItems[tableName].Keys) {
-						const hashKey = request[this.keySchemas[tableName].hashKey];
-						const rangeKey = request[this.keySchemas[tableName].rangeKey];
-						this.ensureHashKey(tableName, hashKey);
-						let item: any;
-						if (this.keySchemas[tableName].rangeKey === undefined) {
-							item = this.collections[tableName][hashKey];
-						} else {
-							item = this.collections[tableName][hashKey][rangeKey];
+	public batchGet(input: DocumentClient.BatchGetItemInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				const response: DocumentClient.BatchGetItemOutput = { Responses: {} };
+				for (const tableName in input.RequestItems)
+					if (input.RequestItems.hasOwnProperty(tableName)) {
+						response.Responses[tableName] = [];
+						for (const request of input.RequestItems[tableName].Keys) {
+							const hashKey = request[this.keySchemas[tableName].hashKey];
+							const rangeKey = request[this.keySchemas[tableName].rangeKey];
+							this.ensureHashKey(tableName, hashKey);
+							let item: any;
+							if (this.keySchemas[tableName].rangeKey === undefined) {
+								item = this.collections[tableName][hashKey];
+							} else {
+								item = this.collections[tableName][hashKey][rangeKey];
+							}
+							if (item !== undefined) {
+								response.Responses[tableName].push(item);
+							}
 						}
-						if (item !== undefined) {
-							response.Responses[tableName].push(item);
+					}
+
+				return response;
+			},
+		};
+	}
+
+	/* istanbul ignore next */
+	public scan(input: DocumentClient.ScanInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				const response: DocumentClient.ScanOutput = { Items: [] };
+				const startKey = this.getStartKey(input.TableName, input.ExclusiveStartKey);
+				const hashKeys = Object.keys(this.collections[input.TableName]);
+				let hashKey = startKey.hash;
+				let rangeKey = startKey.range;
+				while (this.collections[input.TableName][hashKey] !== undefined) {
+					const rangeKeys = Object.keys(this.collections[input.TableName][hashKey]);
+					if (this.keySchemas[input.TableName].rangeKey === undefined) {
+						response.Items.push(this.collections[input.TableName][hashKey]);
+					} else {
+						while (this.collections[input.TableName][hashKey][rangeKey] !== undefined) {
+							response.Items.push(JSON.parse(this.collections[input.TableName][hashKey][rangeKey]));
+							rangeKey = rangeKeys[rangeKeys.indexOf(rangeKey) + 1];
 						}
 					}
+					hashKey = hashKeys[hashKeys.indexOf(hashKey) + 1];
+				}
+				if (hashKey !== undefined) {
+					response.LastEvaluatedKey = {
+						[this.keySchemas[input.TableName].hashKey]: hashKey,
+						[this.keySchemas[input.TableName].rangeKey]: rangeKey,
+					};
 				}
 
-			return response;
-		});
+				return response;
+			},
+		};
 	}
 
 	/* istanbul ignore next */
-	public async scan(
-		input: DocumentClient.ScanInput,
-		cb: (err?: Error, result?: DocumentClient.ScanOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => {
-			const response: DocumentClient.ScanOutput = { Items: [] };
-			const startKey = this.getStartKey(input.TableName, input.ExclusiveStartKey);
-			const hashKeys = Object.keys(this.collections[input.TableName]);
-			let hashKey = startKey.hash;
-			let rangeKey = startKey.range;
-			while (this.collections[input.TableName][hashKey] !== undefined) {
-				const rangeKeys = Object.keys(this.collections[input.TableName][hashKey]);
-				if (this.keySchemas[input.TableName].rangeKey === undefined) {
-					response.Items.push(this.collections[input.TableName][hashKey]);
-				} else {
-					while (this.collections[input.TableName][hashKey][rangeKey] !== undefined) {
-						response.Items.push(JSON.parse(this.collections[input.TableName][hashKey][rangeKey]));
-						rangeKey = rangeKeys[rangeKeys.indexOf(rangeKey) + 1];
+	public query(input: DocumentClient.QueryInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				const response: DocumentClient.ScanOutput = { Items: [] };
+				const startKey = this.getStartKey(input.TableName, input.ExclusiveStartKey);
+				const hashKeys = Object.keys(this.collections[input.TableName]);
+				let hashKey = startKey.hash;
+				let rangeKey = startKey.range;
+				while (this.collections[input.TableName][hashKey] !== undefined) {
+					const rangeKeys = Object.keys(this.collections[input.TableName][hashKey]);
+					if (this.keySchemas[input.TableName].rangeKey === undefined) {
+						response.Items.push(this.collections[input.TableName][hashKey]);
+					} else {
+						while (this.collections[input.TableName][hashKey][rangeKey] !== undefined) {
+							response.Items.push(JSON.parse(this.collections[input.TableName][hashKey][rangeKey]));
+							rangeKey = rangeKeys[rangeKeys.indexOf(rangeKey) + 1];
+						}
+					}
+					hashKey = hashKeys[hashKeys.indexOf(hashKey) + 1];
+				}
+				if (hashKey !== undefined) {
+					response.LastEvaluatedKey = {
+						[this.keySchemas[input.TableName].hashKey]: hashKey,
+						[this.keySchemas[input.TableName].rangeKey]: rangeKey,
+					};
+				}
+
+				return response;
+			},
+		};
+	}
+
+	/* istanbul ignore next */
+	public update(input: DocumentClient.UpdateItemInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				const item = this.getByKey(input.TableName, input.Key);
+				const updates: { k: string; v: any }[] = /UPDATE/.test(input.UpdateExpression)
+					? /UPDATE ([^,]*)/
+							.exec(input.UpdateExpression)[1]
+							.split(' AND ')
+							.map((s) => s.replace(' ', '').split('='))
+							.map((s) => ({ k: s[0], v: s[1] }))
+					: [];
+				const deletes: string[] = /DELETE/.test(input.UpdateExpression)
+					? /DELETE ([^,]*)/
+							.exec(input.UpdateExpression)[1]
+							.split(' AND ')
+							.map((s) => s.replace(' ', ''))
+					: [];
+
+				for (const update of updates) {
+					let toUpdate: any = item;
+					for (const k of update.k.split('.')) {
+						const realName = input.ExpressionAttributeNames[k];
+						if (typeof toUpdate[realName] !== 'object') {
+							toUpdate[realName] = input.ExpressionAttributeValues[update.v];
+							continue;
+						}
+						toUpdate = toUpdate[realName];
 					}
 				}
-				hashKey = hashKeys[hashKeys.indexOf(hashKey) + 1];
-			}
-			if (hashKey !== undefined) {
-				response.LastEvaluatedKey = {
-					[this.keySchemas[input.TableName].hashKey]: hashKey,
-					[this.keySchemas[input.TableName].rangeKey]: rangeKey,
-				};
-			}
-
-			return response;
-		});
-	}
-
-	/* istanbul ignore next */
-	public async query(
-		input: DocumentClient.QueryInput,
-		cb: (err?: Error, result?: DocumentClient.QueryOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => {
-			const response: DocumentClient.ScanOutput = { Items: [] };
-			const startKey = this.getStartKey(input.TableName, input.ExclusiveStartKey);
-			const hashKeys = Object.keys(this.collections[input.TableName]);
-			let hashKey = startKey.hash;
-			let rangeKey = startKey.range;
-			while (this.collections[input.TableName][hashKey] !== undefined) {
-				const rangeKeys = Object.keys(this.collections[input.TableName][hashKey]);
-				if (this.keySchemas[input.TableName].rangeKey === undefined) {
-					response.Items.push(this.collections[input.TableName][hashKey]);
-				} else {
-					while (this.collections[input.TableName][hashKey][rangeKey] !== undefined) {
-						response.Items.push(JSON.parse(this.collections[input.TableName][hashKey][rangeKey]));
-						rangeKey = rangeKeys[rangeKeys.indexOf(rangeKey) + 1];
+				for (const deleteField of deletes) {
+					let toDelete: any = item;
+					for (const k of deleteField.split('.')) {
+						const realName = input.ExpressionAttributeNames[k];
+						if (typeof toDelete[realName] !== 'object') {
+							toDelete[realName] = undefined;
+							continue;
+						}
+						toDelete = toDelete[realName];
 					}
 				}
-				hashKey = hashKeys[hashKeys.indexOf(hashKey) + 1];
-			}
-			if (hashKey !== undefined) {
-				response.LastEvaluatedKey = {
-					[this.keySchemas[input.TableName].hashKey]: hashKey,
-					[this.keySchemas[input.TableName].rangeKey]: rangeKey,
-				};
-			}
+				this.putItem({ TableName: input.TableName, Item: item });
 
-			return response;
-		});
+				return {};
+			},
+		};
+	}
+
+	public put(input: DocumentClient.PutItemInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				this.putItem(input);
+				return {};
+			},
+		};
 	}
 
 	/* istanbul ignore next */
-	public async update(
-		input: DocumentClient.UpdateItemInput,
-		cb: (err?: Error, result?: DocumentClient.UpdateItemOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => {
-			const item = this.getByKey(input.TableName, input.Key);
-			const updates: { k: string; v: any }[] = /UPDATE/.test(input.UpdateExpression)
-				? /UPDATE ([^,]*)/
-						.exec(input.UpdateExpression)[1]
-						.split(' AND ')
-						.map((s) => s.replace(' ', '').split('='))
-						.map((s) => ({ k: s[0], v: s[1] }))
-				: [];
-			const deletes: string[] = /DELETE/.test(input.UpdateExpression)
-				? /DELETE ([^,]*)/
-						.exec(input.UpdateExpression)[1]
-						.split(' AND ')
-						.map((s) => s.replace(' ', ''))
-				: [];
-
-			for (const update of updates) {
-				let toUpdate: any = item;
-				for (const k of update.k.split('.')) {
-					const realName = input.ExpressionAttributeNames[k];
-					if (typeof toUpdate[realName] !== 'object') {
-						toUpdate[realName] = input.ExpressionAttributeValues[update.v];
-						continue;
+	public transactWrite(input: DocumentClient.TransactWriteItemsInput) {
+		return {
+			promise: async () => {
+				await this.awaitFlush();
+				this.guardShouldFail();
+				for (const item of input.TransactItems) {
+					if (item.Update) {
+						throw new Error('fake transact update not implemented');
+					} else if (item.Put) {
+						this.putItem(item.Put);
+					} else if (item.Delete) {
+						this.deleteItem(item.Delete);
 					}
-					toUpdate = toUpdate[realName];
 				}
-			}
-			for (const deleteField of deletes) {
-				let toDelete: any = item;
-				for (const k of deleteField.split('.')) {
-					const realName = input.ExpressionAttributeNames[k];
-					if (typeof toDelete[realName] !== 'object') {
-						toDelete[realName] = undefined;
-						continue;
-					}
-					toDelete = toDelete[realName];
-				}
-			}
-			this.putItem({ TableName: input.TableName, Item: item });
 
-			cb(null, {});
-		});
-	}
-
-	public async put(
-		input: DocumentClient.PutItemInput,
-		cb: (err?: Error, result?: DocumentClient.PutItemOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => {
-			this.putItem(input);
-			return {};
-		});
+				return {};
+			},
+		};
 	}
 
 	/* istanbul ignore next */
-	public async transactWrite(
-		input: DocumentClient.TransactWriteItemsInput,
-		cb: (err?: Error, result?: DocumentClient.TransactWriteItemsOutput) => any,
-	) {
-		await this.awaitFlush();
-		this.guardShouldFail(cb, () => {
-			for (const item of input.TransactItems) {
-				if (item.Update) {
-					throw new Error('fake transact update not implemented');
-				} else if (item.Put) {
-					this.putItem(item.Put);
-				} else if (item.Delete) {
-					this.deleteItem(item.Delete);
-				}
-			}
-
-			return {};
-		});
-	}
-
-	/* istanbul ignore next */
-	public async delete(
-		input: DocumentClient.DeleteItemInput,
-		cb: (err?: Error, result?: DocumentClient.DeleteItemOutput) => any,
-	) {
-		this.deleteItem(input);
-		cb(null, {});
+	public delete(input: DocumentClient.DeleteItemInput) {
+		return {
+			promise: async () => {
+				this.deleteItem(input);
+				return {};
+			},
+		};
 	}
 
 	/* istanbul ignore next */
@@ -323,13 +326,11 @@ export class FakeDocumentClient {
 		}
 	}
 
-	private guardShouldFail(cb: (err: Error, data?: any) => any, onSuccess: () => any) {
+	private guardShouldFail() {
 		if (this.shouldFail === false) {
-			cb(null, onSuccess());
-
 			return;
 		}
-		cb(this.error !== undefined ? this.error : new Error('Repository error'));
+		throw this.error !== undefined ? this.error : new Error('Repository error');
 	}
 
 	private ensureHashKey(tableName: string, hashKey: string) {

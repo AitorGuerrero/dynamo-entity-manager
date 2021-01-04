@@ -1,6 +1,4 @@
-import { DynamoDB } from 'aws-sdk';
 import { EventEmitter } from 'events';
-import IPoweredDynamo from 'powered-dynamo/powered-dynamo.interface';
 import { TrackedItems } from '../entity-manager.class';
 import CreatedTrackedItem from '../tracked-items/created.class';
 import DeletedTrackedItem from '../tracked-items/deleted.class';
@@ -8,18 +6,18 @@ import UpdatedTrackedItem from '../tracked-items/updated.class';
 import addVersionConditionExpression from './add-version-condition-expression.function';
 import addVersionToCreateItem from './add-version-to-create-item.function';
 import addVersionToUpdateItem from './add-version-to-update-item.function';
+import PoweredDynamo from 'powered-dynamo';
 import IFlusher from './flusher.interface';
 
-import DocumentClient = DynamoDB.DocumentClient;
-
 export default class ParallelFlusher implements IFlusher {
-	protected flushing: false | Promise<void> = false;
-
 	/**
-	 * @param {DocumentClient} dc
-	 * @param {module:events.internal.EventEmitter} eventEmitter
+	 * @param poweredDynamo: PoweredDynamo
+	 * @param eventEmitter: EventEmitter
 	 */
-	constructor(protected dc: IPoweredDynamo, public readonly eventEmitter = new EventEmitter()) {}
+	constructor(
+		protected poweredDynamo: PoweredDynamo,
+		public readonly eventEmitter = new EventEmitter(),
+	) {}
 
 	/**
 	 * Flushes all the changes made to loaded entities.
@@ -41,7 +39,7 @@ export default class ParallelFlusher implements IFlusher {
 	}
 
 	private async createItem<E>(trackedEntity: CreatedTrackedItem<E>) {
-		await this.dc.put({
+		await this.poweredDynamo.put({
 			Item: addVersionToCreateItem(
 				trackedEntity.tableConfig.marshal(trackedEntity.entity),
 				trackedEntity.tableConfig,
@@ -56,7 +54,7 @@ export default class ParallelFlusher implements IFlusher {
 			return;
 		}
 
-		await this.dc.put(
+		await this.poweredDynamo.put(
 			addVersionConditionExpression(trackedEntity, {
 				Item: addVersionToUpdateItem(tableConfig.marshal(trackedEntity.entity), trackedEntity),
 				TableName: tableConfig.tableName,
@@ -65,7 +63,7 @@ export default class ParallelFlusher implements IFlusher {
 	}
 
 	private async deleteItem<E>(trackedEntity: DeletedTrackedItem<E>) {
-		await this.dc.delete(
+		await this.poweredDynamo.delete(
 			addVersionConditionExpression(trackedEntity, {
 				Key: trackedEntity.getEntityKey(),
 				TableName: trackedEntity.tableConfig.tableName,
