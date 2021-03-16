@@ -1,0 +1,8 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+yarn
+tsc
+prettier -c .
+tslint -p .
+nyc mocha
