@@ -37,7 +37,7 @@ describe('Having entity manager with transactional flusher', () => {
 
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({ [tableName]: keySchema });
-		const poweredDynamo = new PoweredDynamo((documentClient as any) as DynamoDB.DocumentClient);
+		const poweredDynamo = new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient);
 		entityManager = new DynamoEntityManager(new TransactionalFlusher(poweredDynamo), [tableConfig]);
 	});
 	describe('and creating a entity', () => {
@@ -204,7 +204,7 @@ describe('Having entity manager with parallel flusher', () => {
 
 	beforeEach(() => {
 		documentClient = new FakeDocumentClient({ [tableName]: keySchema });
-		const poweredDynamo = new PoweredDynamo((documentClient as any) as DynamoDB.DocumentClient);
+		const poweredDynamo = new PoweredDynamo(documentClient as any as DynamoDB.DocumentClient);
 		entityManager = new DynamoEntityManager(new ParallelFlusher(poweredDynamo), [tableConfig]);
 	});
 	describe('and creating a entity', () => {
