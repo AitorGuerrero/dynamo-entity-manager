@@ -5,4 +5,4 @@ yarn
 tsc
 prettier -c .
 tslint -p .
-nyc mocha
+yarn mocha --reporter=dot --forbid-only --forbid-pending
