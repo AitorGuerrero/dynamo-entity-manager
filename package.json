@@ -4,16 +4,13 @@
 	"description": "Entity manager for Amazon DynamoDB NoSQL database",
 	"main": "index.js",
 	"scripts": {
-		"postpublish": "git push",
 		"pretest": "yarn build",
 		"test": "mocha",
 		"pretest:coverage": "yarn pretest",
 		"test:coverage": "nyc mocha",
-		"prebuild": "yarn",
-		"build": "tsc",
-		"prefixStyle": "yarn",
 		"fixStyle": "prettier -c . --write && tslint -p . --fix",
-		"preversion": "yarn test:coverage",
+		"prepublish": "yarn tsc --build",
+		"postpublish": "yarn tsc --build --clean",
 		"prepare": "husky install"
 	},
 	"keywords": [
@@ -30,9 +27,7 @@
 	},
 	"author": "Aitor Guerrero <aitor.guerrero.dev@gmail.com>",
 	"license": "ISC",
-	"dependencies": {
-		"powered-dynamo": "^3.0.1"
-	},
+	"dependencies": {},
 	"devDependencies": {
 		"@types/chai": "^4.1.7",
 		"@types/mocha": "^9.0.0",

@@ -1,6 +1,4 @@
 import { DynamoDB } from 'aws-sdk';
-import { EventEmitter } from 'events';
-import PoweredDynamo from 'powered-dynamo';
 import { TrackedItems } from '../entity-manager.class';
 import { ITableConfig } from '../table-config.interface';
 import CreatedTrackedItem from '../tracked-items/created.class';
@@ -12,8 +10,6 @@ import addVersionToCreateItem from './add-version-to-create-item.function';
 import addVersionToUpdateItem from './add-version-to-update-item.function';
 import TransactionItemsLimitReached from './error.transaction-items-limit-reached.class';
 import IFlusher from './flusher.interface';
-
-import DocumentClient = DynamoDB.DocumentClient;
 
 const maxTransactWriteElems = 25;
 
@@ -62,7 +58,7 @@ export default class TransactionalFlusher implements IFlusher {
 
 	private static updateItemTransactional<Entity>(
 		trackedEntity: UpdatedTrackedItem<Entity>,
-	): DocumentClient.TransactWriteItem {
+	): DynamoDB.DocumentClient.TransactWriteItem {
 		const tableConfig = trackedEntity.tableConfig;
 		if (!trackedEntity.hasChanged) {
 			return;
@@ -72,7 +68,7 @@ export default class TransactionalFlusher implements IFlusher {
 			Put: addVersionConditionExpression(trackedEntity, {
 				Item: addVersionToUpdateItem(tableConfig.marshal(trackedEntity.entity), trackedEntity),
 				TableName: tableConfig.tableName,
-			}) as DocumentClient.Put,
+			}),
 		};
 	}
 
@@ -83,7 +79,7 @@ export default class TransactionalFlusher implements IFlusher {
 			Delete: addVersionConditionExpression(trackedEntity, {
 				Key: trackedEntity.getEntityKey(),
 				TableName: trackedEntity.tableConfig.tableName,
-			}) as DocumentClient.Delete,
+			}),
 		};
 	}
 
@@ -91,11 +87,10 @@ export default class TransactionalFlusher implements IFlusher {
 
 	/**
 	 * @param {DocumentClient} dc
-	 * @param {module:events.internal.EventEmitter} eventEmitter
 	 * @param options
 	 */
 	constructor(
-		private dc: PoweredDynamo,
+		private dc: DynamoDB.DocumentClient,
 		private options: {
 			onItemsLimitFallbackFlusher?: IFlusher;
 		} = {},
@@ -118,7 +113,7 @@ export default class TransactionalFlusher implements IFlusher {
 	}
 
 	private buildOperations(tracked: TrackedItems<unknown>) {
-		const operations: DocumentClient.TransactWriteItem[] = [];
+		const operations: DynamoDB.DocumentClient.TransactWriteItem[] = [];
 		for (const entityConfig of tracked.values()) {
 			operations.push(TransactionalFlusher.flushEntity(entityConfig));
 		}
@@ -126,7 +121,7 @@ export default class TransactionalFlusher implements IFlusher {
 		return operations.filter((i) => i !== undefined);
 	}
 
-	private async processOperations(operations: DocumentClient.TransactWriteItem[]) {
+	private async processOperations(operations: DynamoDB.DocumentClient.TransactWriteItem[]) {
 		if (operations.length > maxTransactWriteElems) {
 			throw new TransactionItemsLimitReached(operations.length);
 		}
@@ -135,7 +130,9 @@ export default class TransactionalFlusher implements IFlusher {
 		}
 	}
 
-	private async processOperationsChunk(operationsChunk: DocumentClient.TransactWriteItem[]) {
+	private async processOperationsChunk(
+		operationsChunk: DynamoDB.DocumentClient.TransactWriteItem[],
+	) {
 		try {
 			await this.asyncTransaction({
 				TransactItems: operationsChunk,
@@ -147,7 +144,7 @@ export default class TransactionalFlusher implements IFlusher {
 		}
 	}
 
-	private asyncTransaction(request: DocumentClient.TransactWriteItemsInput) {
-		return this.dc.transactWrite(request);
+	private asyncTransaction(request: DynamoDB.DocumentClient.TransactWriteItemsInput) {
+		return this.dc.transactWrite(request).promise();
 	}
 }

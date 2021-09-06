@@ -1,8 +1,8 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-yarn
-tsc
+yarn install
+tsc --noEmit
 prettier -c .
 tslint -p .
-yarn mocha --reporter=dot --forbid-only --forbid-pending
+yarn nyc --reporter=text-summary mocha --reporter=dot --forbid-only --forbid-pending

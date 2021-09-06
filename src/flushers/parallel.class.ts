@@ -6,16 +6,17 @@ import UpdatedTrackedItem from '../tracked-items/updated.class';
 import addVersionConditionExpression from './add-version-condition-expression.function';
 import addVersionToCreateItem from './add-version-to-create-item.function';
 import addVersionToUpdateItem from './add-version-to-update-item.function';
-import PoweredDynamo from 'powered-dynamo';
 import IFlusher from './flusher.interface';
+import { DynamoDB } from 'aws-sdk';
 
 export default class ParallelFlusher implements IFlusher {
 	/**
-	 * @param poweredDynamo: PoweredDynamo
-	 * @param eventEmitter: EventEmitter
+	 *
+	 * @param documentClient
+	 * @param eventEmitter
 	 */
 	constructor(
-		protected poweredDynamo: PoweredDynamo,
+		private readonly documentClient: DynamoDB.DocumentClient,
 		public readonly eventEmitter = new EventEmitter(),
 	) {}
 
@@ -39,13 +40,15 @@ export default class ParallelFlusher implements IFlusher {
 	}
 
 	private async createItem<E>(trackedEntity: CreatedTrackedItem<E>) {
-		await this.poweredDynamo.put({
-			Item: addVersionToCreateItem(
-				trackedEntity.tableConfig.marshal(trackedEntity.entity),
-				trackedEntity.tableConfig,
-			),
-			TableName: trackedEntity.tableConfig.tableName,
-		});
+		await this.documentClient
+			.put({
+				Item: addVersionToCreateItem(
+					trackedEntity.tableConfig.marshal(trackedEntity.entity),
+					trackedEntity.tableConfig,
+				),
+				TableName: trackedEntity.tableConfig.tableName,
+			})
+			.promise();
 	}
 
 	private async updateItem<E>(trackedEntity: UpdatedTrackedItem<E>) {
@@ -54,20 +57,24 @@ export default class ParallelFlusher implements IFlusher {
 			return;
 		}
 
-		await this.poweredDynamo.put(
-			addVersionConditionExpression(trackedEntity, {
-				Item: addVersionToUpdateItem(tableConfig.marshal(trackedEntity.entity), trackedEntity),
-				TableName: tableConfig.tableName,
-			}),
-		);
+		await this.documentClient
+			.put(
+				addVersionConditionExpression(trackedEntity, {
+					Item: addVersionToUpdateItem(tableConfig.marshal(trackedEntity.entity), trackedEntity),
+					TableName: tableConfig.tableName,
+				}),
+			)
+			.promise();
 	}
 
 	private async deleteItem<E>(trackedEntity: DeletedTrackedItem<E>) {
-		await this.poweredDynamo.delete(
-			addVersionConditionExpression(trackedEntity, {
-				Key: trackedEntity.getEntityKey(),
-				TableName: trackedEntity.tableConfig.tableName,
-			}),
-		);
+		await this.documentClient
+			.delete(
+				addVersionConditionExpression(trackedEntity, {
+					Key: trackedEntity.getEntityKey(),
+					TableName: trackedEntity.tableConfig.tableName,
+				}),
+			)
+			.promise();
 	}
 }

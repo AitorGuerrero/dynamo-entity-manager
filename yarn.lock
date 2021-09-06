@@ -648,11 +648,6 @@ diff@^4.0.1:
   resolved "https://registry.yarnpkg.com/diff/-/diff-4.0.2.tgz#60f3aecb89d5fae520c11aa19efc2bb982aade7d"
   integrity sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==
 
-dynamo-iterator@^1.1.2:
-  version "1.1.6"
-  resolved "https://registry.yarnpkg.com/dynamo-iterator/-/dynamo-iterator-1.1.6.tgz#37df7bfd4aeea7719aa7eed6ba012eacee2b9bbb"
-  integrity sha512-Wl9hOc8ZQ3MIt6AfeVKo18aJ3HMcuhr7nq9AqOjJ7vYlskDak0CDs2eUXe7+2wYR4Km0k5PGc71olEYesnNSmw==
-
 electron-to-chromium@^1.3.830:
   version "1.3.830"
   resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.830.tgz#40e3144204f8ca11b2cebec83cf14c20d3499236"
@@ -1306,13 +1301,6 @@ pkg-dir@^4.1.0:
   integrity sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==
   dependencies:
     find-up "^4.0.0"
-
-powered-dynamo@^3.0.1:
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/powered-dynamo/-/powered-dynamo-3.0.2.tgz#dc3f761eaf06d63a87fb5d569c6db697d35d452c"
-  integrity sha512-8U6NRAS0a+N3Nyg1XWwOXQPR7xhhTi2uQKbuSdEONIm9nEXGblm66GoClG/1Yxgc87cGKiKnudsFQED2pN8KZw==
-  dependencies:
-    dynamo-iterator "^1.1.2"
 
 prettier@^2.0.5:
   version "2.3.2"
